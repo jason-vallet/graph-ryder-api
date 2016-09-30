@@ -26,6 +26,8 @@ class Update(Resource):
         importer.create_users()
         importer.create_posts()
         importer.create_comments()
+        importer.create_tags()
+        importer.create_annotations()
         return makeResponse(importer.end_import(), 200)
 
 
@@ -35,4 +37,6 @@ class HardUpdate(Resource):
         importer.create_users()
         importer.create_posts()
         importer.create_comments()
+        importer.create_tags()
+        importer.create_annotations()
         return makeResponse(importer.end_import(), 200)

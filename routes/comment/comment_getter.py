@@ -6,7 +6,7 @@ from routes.utils import addargs, makeResponse
 
 class GetComment(Resource):
     def get(self, comment_id):
-        req = "MATCH (find:comment {cid: %d}) RETURN find" % comment_id
+        req = "MATCH (find:comment {comment_id: %d}) RETURN find" % comment_id
         result = neo4j.query_neo4j(req)
         try:
             return makeResponse(result.single()['find'].properties, 200)
@@ -16,33 +16,33 @@ class GetComment(Resource):
 
 class GetCommentHydrate(Resource):
     def get(self, comment_id):
-        req = "MATCH (find:comment {cid: %d}) " % comment_id
+        req = "MATCH (find:comment {comment_id: %d}) " % comment_id
         req += "OPTIONAL MATCH (find)<-[:AUTHORSHIP]-(author:user) "
         req += "OPTIONAL MATCH (find)-[:COMMENTS]->(post:post) "
-        req += "RETURN find, author.uid AS author_id, author.name AS author_name, post.pid AS post_id, post.title AS post_title"
+        req += "RETURN find, author.user_id AS user_id, author.name AS user_name, post.post_id AS post_id, post.title AS post_title"
         result = neo4j.query_neo4j(req)
         author = {}
         post = {}
         for record in result:
             comment = record['find'].properties
             try:
-                if record['author_id']:
-                    author['uid'] = record['author_id']
+                if record['user_id']:
+                    author['user_id'] = record['user_id']
             except KeyError:
                 pass
             try:
-                if record['author_name']:
-                    author['name'] = record['author_name']
+                if record['user_name']:
+                    author['user_name'] = record['user_name']
             except KeyError:
                 pass
             try:
                 if record['post_id']:
-                    post['pid'] = record['post_id']
+                    post['post_id'] = record['post_id']
             except KeyError:
                 pass
             try:
                 if record['post_title']:
-                    post['title'] = record['post_title']
+                    post['post_title'] = record['post_title']
             except KeyError:
                 pass
         try:
@@ -56,18 +56,18 @@ class GetCommentHydrate(Resource):
 
 class GetComments(Resource):
     def get(self):
-        req = "MATCH (c:comment) RETURN c.cid AS cid, c.subject AS subject"
+        req = "MATCH (c:comment) RETURN c.comment_id AS comment_id, c.title AS title"
         req += addargs()
         result = neo4j.query_neo4j(req)
         comments = []
         for record in result:
-            comments.append({'cid': record['cid'], "subject": record['subject']})
+            comments.append({'comment_id': record['comment_id'], "title": record['title']})
         return makeResponse(comments, 200)
 
 
 class GetCommentsByAuthor(Resource):
     def get(self, author_id):
-        req = "MATCH (author:user {uid: %d})-[:AUTHORSHIP]->(c:comment) RETURN c" % author_id
+        req = "MATCH (author:user {user_id: %d})-[:AUTHORSHIP]->(c:comment) RETURN c" % author_id
         req += addargs()
         result = neo4j.query_neo4j(req)
         comments = []
@@ -78,7 +78,7 @@ class GetCommentsByAuthor(Resource):
 
 class GetCommentsOnPost(Resource):
     def get(self, post_id):
-        req = "MATCH (c:comment)-[:COMMENTS]->(post:post { pid: %d}) RETURN c" % post_id
+        req = "MATCH (c:comment)-[:COMMENTS]->(post:post { post_id: %d}) RETURN c" % post_id
         req += addargs()
         result = neo4j.query_neo4j(req)
         comments = []
@@ -89,7 +89,7 @@ class GetCommentsOnPost(Resource):
 
 class GetCommentsOnComment(Resource):
     def get(self, comment_id):
-        req = "MATCH (c:comment)-[:COMMENTS]->(comment:comment { cid: %d}) RETURN c" % comment_id
+        req = "MATCH (c:comment)-[:COMMENTS]->(comment:comment { comment_id: %d}) RETURN c" % comment_id
         req += addargs()
         result = neo4j.query_neo4j(req)
         comments = []

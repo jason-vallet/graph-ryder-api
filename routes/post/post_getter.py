@@ -7,7 +7,7 @@ parser = reqparse.RequestParser()
 
 class GetPost(Resource):
     def get(self, post_id):
-        result = neo4j.query_neo4j("MATCH (find:post {pid: %d}) RETURN find" % post_id)
+        result = neo4j.query_neo4j("MATCH (find:post {post_id: %d}) RETURN find" % post_id)
         try:
             return makeResponse(result.single()['find'].properties, 200)
         except ResultError:
@@ -16,7 +16,7 @@ class GetPost(Resource):
 
 class GetPostHydrate(Resource): # todo comments on comments (with author)
     def get(self, post_id):
-        req = "MATCH (find:post {pid: %d}) " % post_id
+        req = "MATCH (find:post {post_id: %d}) " % post_id
         req += "OPTIONAL MATCH (find)<-[:AUTHORSHIP]-(author:user) "
         req += "OPTIONAL MATCH (find)<-[:COMMENTS]-(comment:comment) "
         req += "OPTIONAL MATCH (comment)<-[:AUTHORSHIP]-(commentAuthor:user) "
@@ -47,12 +47,12 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
 
 class GetPosts(Resource):
     def get(self):
-        req = "MATCH (p:post) RETURN p.pid AS pid, p.title AS title"
+        req = "MATCH (p:post) RETURN p.post_id AS post_id, p.title AS title"
         req += addargs()
         result = neo4j.query_neo4j(req)
         posts = []
         for record in result:
-            posts.append({'pid': record['pid'], "title": record['title']})
+            posts.append({'post_id': record['post_id'], "title": record['title']})
         return makeResponse(posts, 200)
 
 
@@ -69,7 +69,7 @@ class GetPostsByType(Resource):
 
 class GetPostsByAuthor(Resource):
     def get(self, author_id):
-        req = "MATCH (author:user {uid: %d})-[:AUTHORSHIP]->(p:post) RETURN p" % author_id
+        req = "MATCH (author:user {user_id: %d})-[:AUTHORSHIP]->(p:post) RETURN p" % author_id
         req += addargs()
         result = neo4j.query_neo4j(req)
         posts = []

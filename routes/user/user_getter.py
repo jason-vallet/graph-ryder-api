@@ -15,7 +15,7 @@ class GetUser(Resource):
     @apiSuccess {Json} object The user.
     """
     def get(self, user_id):
-        req = "MATCH (find:user {uid: %d}) RETURN find" % user_id
+        req = "MATCH (find:user {user_id: %d}) RETURN find" % user_id
         result = neo4j.query_neo4j(req)
         try:
             return makeResponse(result.single()['find'].properties, 200)
@@ -28,7 +28,7 @@ class GetUserHydrate(Resource):
     @api {get} /user/hydrate/:id Single user information + posts/comments
     @apiName GetUserHydrate
     @apiGroup User
-    @apiDescription Get user info and his comments/posts list (only cid/pid, title and timestamp)
+    @apiDescription Get user info and his comments/posts list (only comment_id/post_id, title and timestamp)
 
     @apiParam {Number} id User unique ID.
 
@@ -36,54 +36,54 @@ class GetUserHydrate(Resource):
     """
     def get(self, user_id):
         # Get user properties
-        req = "MATCH (find:user {uid: %d}) RETURN find" % user_id
+        req = "MATCH (find:user {user_id: %d}) RETURN find" % user_id
         result = neo4j.query_neo4j(req)
         user = result.single()['find'].properties
         # Get user's posts
-        req = "MATCH (find:user {uid: %d})" % user_id
+        req = "MATCH (find:user {user_id: %d})" % user_id
         req += " MATCH (find)-[:AUTHORSHIP]->(p:post)"
-        req += ' RETURN p.pid AS p_id, p.title AS p_title, p.timestamp AS p_time'
+        req += ' RETURN p.post_id AS post_id, p.label AS post_label, p.creation_date AS post_creation_date'
         result = neo4j.query_neo4j(req)
         posts = []
         posts_id = []
 
         for record in result:
             try:
-                if record['p_id'] and record['p_id'] not in posts_id:
+                if record['post_id'] and record['post_id'] not in posts_id:
                     post = {}
-                    post['pid'] = record['p_id']
-                    post['title'] = record['p_title']
-                    post['timestamp'] = record['p_time']
+                    post['post_id'] = record['post_id']
+                    post['post_label'] = record['post_label']
+                    post['post_creation_date'] = record['post_creation_date']
                     posts.append(post)
-                    posts_id.append(post['pid'])
+                    posts_id.append(post['post_id'])
             except KeyError:
                 pass
         # Get user's comments
-        req = "MATCH (find:user {uid: %d})" % user_id
+        req = "MATCH (find:user {user_id: %d})" % user_id
         req += " MATCH (find)-[:AUTHORSHIP]->(c:comment)"
         req += " OPTIONAL MATCH (c)-[:COMMENTS]->(p:post)"
-        req += ' RETURN c.cid AS c_id, c.subject AS c_subject, c.timestamp AS c_time, p.pid AS parent_id'
+        req += ' RETURN c.comment_id AS comment_id, c.label AS comment_label, c.creation_date AS comment_creation_date, p.post_id AS comment_parent_post_id'
         result = neo4j.query_neo4j(req)
         comments_id = []
         comments = []
 
         for record in result:
             try:
-                if record['c_id'] and record['c_id'] not in comments_id:
+                if record['comment_id'] and record['comment_id'] not in comments_id:
                     comment = {}
-                    comment['cid'] = record['c_id']
-                    comment['subject'] = record['c_subject']
-                    comment['timestamp'] = record['c_time']
-                    comment['parent_id'] = record['parent_id']
+                    comment['comment_id'] = record['comment_id']
+                    comment['comment_label'] = record['comment_label']
+                    comment['comment_creation_date'] = record['comment_creation_date']
+                    comment['comment_parent_post_id'] = record['comment_parent_post_id']
                     comments.append(comment)
-                    comments_id.append(comment['cid'])
+                    comments_id.append(comment['comment_id'])
             except KeyError:
                 pass
 
         try:
             user
         except NameError:
-            return makeResponse("ERROR : Cannot find user with uid: %d" % user_id, 204)
+            return makeResponse("ERROR : Cannot find user with user_id: %d" % user_id, 204)
         user['posts'] = posts
         user['comments'] = comments
         return makeResponse(user, 200)
@@ -102,10 +102,10 @@ class GetUsers(Resource):
     @apiSuccess {Json} array Users list.
     """
     def get(self):
-        req = "MATCH (n:user) RETURN n.uid AS uid, n.name AS name"
+        req = "MATCH (n:user) RETURN n.user_id AS user_id, n.label AS label"
         req += addargs()
         result = neo4j.query_neo4j(req)
         users = []
         for record in result:
-            users.append({'uid': record['uid'], "name": record['name']})
+            users.append({'user_id': record['user_id'], "label": record['label']})
         return makeResponse(users, 200)
