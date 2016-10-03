@@ -11,7 +11,17 @@ config.read("config.ini")
 
 
 class ImportFromJson(object):
-    def __init__(self, erase=False):
+    verbose = False
+    unmatch_post_user = 0
+    unmatch_comment_user = 0
+    unmatch_comment_post = 0
+    unmatch_comment_parent = 0
+    unmatch_tag_parent = 0
+    unmatch_annotation_user = 0
+    unmatch_annotation_tag = 0
+    unmatch_annotation_entity = 0
+    
+    def __init__(self, erase=False, debug=False):
         super(ImportFromJson, self).__init__()
         print('Initializing')
         self.neo4j_graph = Graph(host=config['neo4j']['url'], user=config['neo4j']['user'], password=config['neo4j']['password'])
@@ -19,12 +29,15 @@ class ImportFromJson(object):
             self.neo4j_graph.delete_all()
         # else:
             # todo ask neo4j for is data version (last_uid last_pid last_cid)
+        ImportFromJson.verbose=debug
         self.unavailable_users_id = []
         self.unavailable_posts_id = []
         self.unavailable_comments_id = []
+        self.unavailable_tags_id = []
+        self.unavailable_annotations_id = []
 
     def create_users(self):
-        query_neo4j("CREATE CONSTRAINT ON (n:user) ASSERT n.uid IS UNIQUE")
+        query_neo4j("CREATE CONSTRAINT ON (n:user) ASSERT n.user_id IS UNIQUE")
         query_neo4j("CREATE CONSTRAINT ON (l:language) ASSERT l.name IS UNIQUE")
         query_neo4j("CREATE CONSTRAINT ON (r:role) ASSERT r.name IS UNIQUE")
         print('Import users')
@@ -32,175 +45,184 @@ class ImportFromJson(object):
         for user_entry in json_users['nodes']:
             user_node = Node('user')
             user_fields = user_entry['node']
-            user_node['uid'] = int(user_fields['Uid'])
+            user_node['user_id'] = int(user_fields['user_id'])
+            if user_fields['label']:
+                user_node['label'] = user_fields['label']
             if user_fields['name']:
                 user_node['name'] = user_fields['name']
-            if user_fields['Bio']:
-                user_node['biography'] = user_fields['Bio']
-            if user_fields['based_in']:
-                user_node['based'] = user_fields['based_in']
-            if user_fields['Website_URL']:
-                user_node['website_url'] = user_fields['Website_URL']
-            if user_fields['Active']:
-                user_node['active'] = user_fields['Active']
-            if user_fields['Age_Group']:
-                user_node['age'] = user_fields['Age_Group']
-            if user_fields['Email']:
+            if user_fields['first_name']:
+                user_node['first_name'] = user_fields['first_name']
+            if user_fields['last_name']:
+                user_node['last_name'] = user_fields['last_name']
+            if user_fields['age']:
+                user_node['age'] = user_fields['age']
+            if user_fields['location']:
+                user_node['location'] = user_fields['location']
+            if user_fields['biography']:
+                user_node['biography'] = user_fields['biography']
+            if user_fields['active']:
+                user_node['active'] = user_fields['active']
+            if user_fields['creation_date']:
+                user_node['timestamp'] = int(time.mktime(datetime.strptime(user_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple())* 1000)
+            if user_fields['email']:
                 # user_node['email'] = user_fields['Email']
                 user_node['email'] = "nomail@nomail.com"
-            if user_fields['Facebook_URL']:
-                user_node['facebook'] = user_fields['Facebook_URL']
-            if user_fields['First_Name']:
-                user_node['first_name'] = user_fields['First_Name']
-            if user_fields['Last_Name']:
-                user_node['last_name'] = user_fields['Last_Name']
-            if user_fields['Group_membership']:
-                user_node['group_member'] = user_fields['Group_membership'] # not well structure to be relation
-            if user_fields['How_did_you_hear_about_Edgeryders?']:
-                user_node['hear_about_edgeryders'] = user_fields['How_did_you_hear_about_Edgeryders?']
-            if user_fields['LinkedIn_URL']:
-                user_node['linkedin'] = user_fields['LinkedIn_URL']
-            if user_fields['Permission']:
-                user_node['permission'] = user_fields['Permission']
-            if user_fields['Twitter_URL']:
-                user_node['twitter'] = user_fields['Twitter_URL']
-            if user_fields['Real_name']:
-                user_node['real_name'] = user_fields['Real_name']
-            if user_fields['Created_date']:
-                user_node['timestamp'] = int(time.mktime(datetime.strptime(user_fields['Created_date'], "%A, %B %d, %Y - %H:%M").timetuple())* 1000)
+            if user_fields['group_membership']:
+                user_node['group_membership'] = user_fields['group_membership'] # not well structure to be relation
+            if user_fields['url_website']:
+                user_node['url_website'] = user_fields['url_website']
+            if user_fields['url_facebook']:
+                user_node['url_facebook'] = user_fields['url_facebook']
+            if user_fields['url_linkedin']:
+                user_node['url_linkedin'] = user_fields['url_linkedin']
+            if user_fields['url_twitter']:
+                user_node['url_twitter'] = user_fields['url_twitter']
+ 
             self.neo4j_graph.merge(user_node)
 
             # Add relation
             # Language
-            if user_fields['Language']:
-                req = "MATCH (u:user { uid : %d }) " % user_node['uid']
-                req += "MERGE (l:language { name : '%s'}) " % user_fields['Language']
-                req += "CREATE UNIQUE (u)-[:SPEAK]->(l)"
+            if user_fields['language']:
+                req = "MATCH (u:user { user_id : %d }) " % user_node['user_id']
+                req += "MERGE (l:language { name : '%s'}) " % user_fields['language']
+                req += "CREATE UNIQUE (u)-[:LANGUAGE_IS]->(l)"
                 query_neo4j(req)
 
             # Role
-            if user_fields['Roles']:
-                for role in user_fields['Roles'].split(','):
-                    req = "MATCH (u:user { uid : %d }) " % user_node['uid']
+            if user_fields['role']:
+                for role in user_fields['role'].split(','):
+                    req = "MATCH (u:user { user_id : %d }) " % user_node['user_id']
                     req += "MERGE (r:role { name : '%s'}) " %role
-                    req += "CREATE UNIQUE (u)-[:HIS]->(r)"
+                    req += "CREATE UNIQUE (u)-[:ROLE_IS]->(r)"
                     query_neo4j(req)
 
-            # TimeTree
-            if user_fields['Created_date']:
-                timestamp = int(time.mktime(datetime.strptime(user_fields['Created_date'], "%A, %B %d, %Y - %H:%M").timetuple())* 1000)
-                req = "MATCH (u:user { uid : %d }) WITH u " % user_node['uid']
+            # link to TimeTree
+            if user_fields['creation_date']:
+                timestamp = int(time.mktime(datetime.strptime(user_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple())* 1000)
+                req = "MATCH (u:user { user_id : %d }) WITH u " % user_node['user_id']
                 req += "CALL ga.timetree.events.attach({node: u, time: %s, relationshipType: 'CREATED_ON'}) " % timestamp
                 req += "YIELD node RETURN u"
                 query_neo4j(req)
 
     def create_posts(self):
-        query_neo4j("CREATE CONSTRAINT ON (p:post) ASSERT p.pid IS UNIQUE")
+        query_neo4j("CREATE CONSTRAINT ON (p:post) ASSERT p.post_id IS UNIQUE")
         print('Import posts')
         json_posts = json.load(open(config['importer']['json_posts_path']))
+        ImportFromJson.unmatch_post_user = 0
         for post_entry in json_posts['nodes']:
             post_node = Node('post')
             post_fields = post_entry['node']
-            post_node['pid'] = int(post_fields['Nid'])
+            post_node['post_id'] = int(post_fields['post_id'])
+            if post_fields['label']:
+                post_node['label'] = post_fields['label']
             if post_fields['title']:
                 post_node['title'] = post_fields['title']
-            if post_fields['Body']:
-                post_node['body'] = post_fields['Body']
-            if post_fields['Group']:
-                post_node['group'] = post_fields['Group']
-            if post_fields['Post date']:
-                post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['Post date'][:-13], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+            if post_fields['content']:
+                post_node['content'] = post_fields['content']
+            if post_fields['creation_date']:
+                post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'][:-13], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
             self.neo4j_graph.merge(post_node)
 
             # Add relation
             # Type
-            if post_fields['Type']:
-                req = "MATCH (p:post { pid : %d })" % post_node['pid']
-                req += "MERGE (pt:post_type { name : '%s'})" % post_fields['Type']
+            if post_fields['type']:
+                req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
+                req += "MERGE (pt:post_type { name : '%s'})" % post_fields['type']
                 req += "CREATE UNIQUE (p)-[:TYPE_IS]->(pt)"
                 query_neo4j(req)
 
             # Type
-            if post_fields['Group ID']:
-                req = "MATCH (p:post { pid : %d })" % post_node['pid']
-                req += " MERGE (n:group_id { gid : '%s'})" % post_fields['Group ID']
+            if post_fields['group_id']:
+                req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
+                req += " MERGE (n:group { group_id : '%s'})" % post_fields['group_id']
                 req += " CREATE UNIQUE (p)-[:GROUP_IS]->(n)"
                 query_neo4j(req)
 
             # Author
-            if post_fields['Author uid']:
+            if post_fields['user_id']:
                 try :
-                    req = "MATCH (p:post { pid : %d })" % post_node['pid']
-                    req += " MATCH (u:user { uid : %s })" % post_fields['Author uid']
+                    req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
+                    req += " MATCH (u:user { user_id : %s })" % post_fields['user_id']
                     req += " CREATE UNIQUE (u)-[:AUTHORSHIP]->(p) RETURN u"
                     query_neo4j(req).single()
                 except ResultError:
-                    print("WARNING : post pid : %d as no author uid : %s" % (post_node['pid'], post_fields['Author uid']))
-                    query_neo4j("MATCH (p:post {pid : %s}) DETACH DELETE p" % post_node['pid'])
-                    self.unavailable_users_id.append(post_fields['Author uid'])
+                    if ImportFromJson.verbose:
+                        print("WARNING : post post_id : %d has no author user_id : %s" % (post_node['post_id'], post_fields['user_id']))
+                    ImportFromJson.unmatch_post_user+=1
+                    query_neo4j("MATCH (p:post {post_id : %s}) DETACH DELETE p" % post_node['post_id'])
+                    self.unavailable_users_id.append(post_fields['user_id'])
 
             # TimeTree
-            if post_fields['Post date']:
-                timestamp = int(time.mktime(datetime.strptime(post_fields['Post date'][:-13], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
-                req = "MATCH (p:post { pid : %d }) WITH p " % post_node['pid']
+            if post_fields['creation_date']:
+                timestamp = int(time.mktime(datetime.strptime(post_fields['creation_date'][:-13], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                req = "MATCH (p:post { post_id : %d }) WITH p " % post_node['post_id']
                 req += "CALL ga.timetree.events.attach({node: p, time: %s, relationshipType: 'POST_ON'}) " % timestamp
                 req += "YIELD node RETURN p"
                 query_neo4j(req)
 
     def create_comments(self):
-        query_neo4j("CREATE CONSTRAINT ON (c:comment) ASSERT c.cid IS UNIQUE")
+        query_neo4j("CREATE CONSTRAINT ON (c:comment) ASSERT c.comment_id IS UNIQUE")
         print('Import comments')
         json_comments = json.load(open(config['importer']['json_comments_path']))
+        ImportFromJson.unmatch_comment_user = 0
+        ImportFromJson.unmatch_comment_post = 0
+        ImportFromJson.unmatch_comment_parent = 0
         for comment_entry in json_comments['nodes']:
             comment_node = Node('comment')
             comment_fields = comment_entry['node']
-            comment_node['cid'] = int(comment_fields['ID'])
-            if comment_fields['subject']:
-                comment_node['subject'] = comment_fields['subject']
-            if comment_fields['Comment']:
-                comment_node['comment'] = comment_fields['Comment']
-            if comment_fields['Post date']:
-                comment_node['timestamp'] = int(time.mktime(datetime.strptime(comment_fields['Post date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
+            comment_node['comment_id'] = int(comment_fields['comment_id'])
+            if comment_fields['label']:
+                comment_node['label'] = comment_fields['label']
+            if comment_fields['title']:
+                comment_node['title'] = comment_fields['title']
+            if comment_fields['content']:
+                comment_node['content'] = comment_fields['content']
+            if comment_fields['creation_date']:
+                comment_node['timestamp'] = int(time.mktime(datetime.strptime(comment_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
             self.neo4j_graph.merge(comment_node)
 
             # Add relation
             # Language
-            if comment_fields['Language']: # todo repare
-                req = "MATCH (c:comment { cid : %d })" % comment_node['cid']
-                req += " MERGE (l:language { name : '%s'})" % comment_fields['Language']
-                req += " CREATE UNIQUE (u)-[:WRITE_IN]->(l)"
-                query_neo4j(req)
+            #if comment_fields['language']: # todo repare
+            #    req = "MATCH (c:comment { comment_id : %d })" % comment_node['comment_id']
+            #    req += " MERGE (l:language { name : '%s'})" % comment_fields['language']
+            #    req += " CREATE UNIQUE (u)-[:WRITE_IN]->(l)"
+            #    query_neo4j(req)
 
             # ParentAuthor
-            if comment_fields['Author uid']:
-                result = query_neo4j("MATCH (u:user { uid : %s }) RETURN u" % comment_fields['Author uid'])
+            if comment_fields['user_id']:
+                result = query_neo4j("MATCH (u:user { user_id : %s }) RETURN u" % comment_fields['user_id'])
                 try:
-                    req = "MATCH (c:comment { cid : %d }) " % comment_node['cid']
-                    req += "MATCH (u:user { uid : %s }) " % comment_fields['Author uid']
+                    req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
+                    req += "MATCH (u:user { user_id : %s }) " % comment_fields['user_id']
                     req += "CREATE UNIQUE (u)-[:AUTHORSHIP]->(c) RETURN u"
                     query_neo4j(req).single()
                 except ResultError:
-                    print("WARNING : comment cid : %d as no author uid : %s" % (comment_node['cid'], comment_fields['Author uid']))
-                    query_neo4j("MATCH (c:comment {cid : %s}) DETACH DELETE c" % comment_node['cid'])
-                    if comment_fields['Author uid'] not in self.unavailable_users_id:
-                        self.unavailable_users_id.append(comment_fields['Author uid'])
+                    if ImportFromJson.verbose:
+                        print("WARNING : comment cid : %d has no author uid : %s" % (comment_node['comment_id'], comment_fields['user_id']))
+                    ImportFromJson.unmatch_comment_user+=1 
+                    query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
+                    if comment_fields['user_id'] not in self.unavailable_users_id:
+                        self.unavailable_users_id.append(comment_fields['user_id'])
             # ParentPost
-            if comment_fields['Nid']:
+            if comment_fields['post_id']:
                 try:
-                    req = "MATCH (c:comment { cid : %d }) " % comment_node['cid']
-                    req += "MATCH (p:post { pid : %s }) " % comment_fields['Nid'].replace(",", "")
+                    req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
+                    req += "MATCH (p:post { post_id : %s }) " % comment_fields['post_id'].replace(",", "")
                     req += "CREATE UNIQUE (c)-[:COMMENTS]->(p) RETURN p"
                     query_neo4j(req).single()
                 except ResultError:
-                    print("WARNING : comment cid : %d as no post parent pid : %s" % (comment_node['cid'], comment_fields['Nid'].replace(",", "")))
-                    query_neo4j("MATCH (c:comment {cid : %s}) DETACH DELETE c" % comment_node['cid'])
-                    if comment_fields['Nid'] not in self.unavailable_posts_id:
-                        self.unavailable_posts_id.append(comment_fields['Nid'])
+                    if ImportFromJson.verbose:
+                        print("WARNING : comment cid : %d has no post parent pid : %s" % (comment_node['comment_id'], comment_fields['post_id'].replace(",", "")))
+                    ImportFromJson.unmatch_comment_post+=1
+                    query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
+                    if comment_fields['post_id'] not in self.unavailable_posts_id:
+                        self.unavailable_posts_id.append(comment_fields['post_id'])
 
             # TimeTree
-            if comment_fields['Post date']:
-                timestamp = int(time.mktime(datetime.strptime(comment_fields['Post date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
-                req = "MATCH (c:comment { cid : %d }) WITH c " % comment_node['cid']
+            if comment_fields['creation_date']:
+                timestamp = int(time.mktime(datetime.strptime(comment_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
+                req = "MATCH (c:comment { comment_id : %d }) WITH c " % comment_node['comment_id']
                 req += "CALL ga.timetree.events.attach({node: c, time: %s, relationshipType: 'POST_ON'}) " % timestamp
                 req += "YIELD node RETURN c"
                 query_neo4j(req)
@@ -209,21 +231,137 @@ class ImportFromJson(object):
         for comment_entry in json_comments['nodes']:
             comment_node = Node('comment')
             comment_fields = comment_entry['node']
-            comment_node['cid'] = int(comment_fields['ID'])
-            if comment_fields['Parent CID'] and comment_fields['Parent CID'] != 0:
+            comment_node['comment_id'] = int(comment_fields['comment_id'])
+            if comment_fields['parent_comment_id'] and comment_fields['parent_comment_id'] != str(0):
                 try:
-                    req = "MATCH (c:comment { cid : %d }) " % comment_node['cid']
-                    req += "MATCH (parent:comment { cid : %d }) " % int(comment_fields['Parent CID'])
+                    req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
+                    req += "MATCH (parent:comment { comment_id : %d }) " % int(comment_fields['parent_comment_id'])
                     req += "CREATE UNIQUE (c)-[:COMMENTS]->(parent) RETURN parent"
                     query_neo4j(req).single()
                 except ResultError:
-                    print("WARNING : comment cid : %d as no comment parent pid : %s" % (comment_node['cid'], comment_fields['Parent CID']))
-                    query_neo4j("MATCH (c:comment {cid : %s}) DETACH DELETE c" % comment_node['cid'])
-                    if comment_fields['Parent CID'] not in self.unavailable_comments_id:
-                        self.unavailable_comments_id.append(comment_fields['Parent CID'])
+                    if ImportFromJson.verbose:
+                        print("WARNING : comment cid : %d has no comment parent pid : %s" % (comment_node['comment_id'], comment_fields['parent_comment_id']))
+                    ImportFromJson.unmatch_comment_parent +=1
+                    query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
+                    if comment_fields['parent_comment_id'] not in self.unavailable_comments_id:
+                        self.unavailable_comments_id.append(comment_fields['parent_comment_id'])
+
+    def create_tags(self):
+        query_neo4j("CREATE CONSTRAINT ON (t:tag) ASSERT t.tag_id IS UNIQUE")
+        print('Import tags')
+        json_tags = json.load(open(config['importer']['json_tags_path']))
+        ImportFromJson.unmatch_tag_parent = 0
+        for tag_entry in json_tags['nodes']:
+            tag_node = Node('tag')
+            tag_fields = tag_entry['node']
+            tag_node['tag_id'] = int(tag_fields['tag_id'])
+            if tag_fields['label']:
+                tag_node['label'] = tag_fields['label']
+            if tag_fields['name']:
+                tag_node['name'] = tag_fields['name']
+            self.neo4j_graph.merge(tag_node)
+
+        # ParentTags
+        for tag_entry in json_tags['nodes']:
+            tag_node = Node('tag')
+            tag_fields = tag_entry['node']
+            tag_node['tag_id'] = int(tag_fields['tag_id'])
+            if tag_fields['parent_tag_id'] and tag_fields['parent_tag_id'] != str(0):
+                try:
+                    req = "MATCH (t:tag { tag_id : %d }) " % tag_node['tag_id']
+                    req += "MATCH (parent:tag { tag_id : %d }) " % int(tag_fields['parent_tag_id'])
+                    req += "CREATE UNIQUE (t)-[:IS_CHILD]->(parent) RETURN parent"
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : tag tid : %d has no tag parent tid : %s" % (tag_node['tag_id'], tag_fields['parent_tag_id']))
+                    ImportFromJson.unmatch_tag_parent +=1
+                    query_neo4j("MATCH (t:tag {tag_id : %s}) DETACH DELETE t" % tag_node['tag_id'])
+                    if tag_fields['parent_tag_id'] not in self.unavailable_tags_id:
+                        self.unavailable_tags_id.append(tag_fields['parent_tag_id'])
+
+    def create_annotations(self):
+        query_neo4j("CREATE CONSTRAINT ON (a:annotation) ASSERT a.annotation_id IS UNIQUE")
+        print('Import annotations')
+        json_annotations = json.load(open(config['importer']['json_annotations_path']))
+        ImportFromJson.unmatch_annotation_user = 0
+        ImportFromJson.unmatch_annotation_tag = 0 
+        ImportFromJson.unmatch_annotation_entity = 0
+        for annotation_entry in json_annotations['nodes']:
+            annotation_node = Node('annotation')
+            annotation_fields = annotation_entry['node']
+            annotation_node['annotation_id'] = int(annotation_fields['annotation_id'])
+            #if annotation_fields['label']:
+            #    annotation_node['label'] = annotation_fields['label']
+            if annotation_fields['quote']:
+                annotation_node['quote'] = annotation_fields['quote']
+            if annotation_fields['creation_date']:
+                annotation_node['timestamp'] = int(time.mktime(datetime.strptime(annotation_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
+            self.neo4j_graph.merge(annotation_node)
+
+            # Add relation
+            # Author
+            if annotation_fields['user_id']:
+                result = query_neo4j("MATCH (u:user { user_id : %s }) RETURN u" % annotation_fields['user_id'])
+                try:
+                    req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
+                    req += "MATCH (u:user { user_id : %s }) " % annotation_fields['user_id']
+                    req += "CREATE UNIQUE (u)-[:AUTHORSHIP]->(a) RETURN u"
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : annotation aid : %d has no author uid : %s" % (annotation_node['annotation_id'], annotation_fields['user_id']))
+                    ImportFromJson.unmatch_annotation_user+=1
+                    query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation_node['annotation_id'])
+                    if annotation_fields['user_id'] not in self.unavailable_users_id:
+                        self.unavailable_users_id.append(annotation_fields['user_id'])
+            # Tag
+            if annotation_fields['tag_id']:
+                try:
+                    req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
+                    req += "MATCH (t:tag { tag_id : %s }) " % annotation_fields['tag_id'].replace(",", "")
+                    req += "CREATE UNIQUE (a)-[:REFERS_TO]->(t) RETURN t"
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : annotation aid : %d has no corresponding tag tid : %s" % (annotation_node['annotation_id'], annotation_fields['tag_id'].replace(",", "")))
+                    ImportFromJson.unmatch_annotation_tag +=1
+                    query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation_node['annotation_id'])
+                    if annotation_fields['tag_id'] not in self.unavailable_tags_id:
+                        self.unavailable_tags_id.append(annotation_fields['tag_id'])
+            # Post/comment
+            if annotation_fields['entity_id']:
+                try:
+                    req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
+                    if str(annotation_fields['entity_type'])==str('comment') :
+                        req += "MATCH (e:comment { comment_id : %s }) " % annotation_fields['entity_id'].replace(",", "")
+                    else:
+                        req += "MATCH (e:post { post_id : %s }) " % annotation_fields['entity_id'].replace(",", "")
+                    req += "CREATE UNIQUE (a)-[:ANNOTATES]->(e) RETURN e"
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : annotation aid : %d has no corresponding %s id : %s" % (annotation_node['annotation_id'], annotation_fields['entity_type'], annotation_fields['entity_id'].replace(",", "")))
+                    ImportFromJson.unmatch_annotation_entity +=1
+                    query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation_node['annotation_id'])
+                    if annotation_fields['entity_type'] == "comment":
+                        if annotation_fields['entity_id'] not in self.unavailable_comments_id:
+                            self.unavailable_comments_id.append(annotation_fields['entity_id'])
+                    else:
+                        if annotation_fields['entity_id'] not in self.unavailable_posts_id:
+                            self.unavailable_posts_id.append(annotation_fields['entity_id'])
+
 
     def end_import(self):
-        response = {'users': self.unavailable_users_id, "posts": self.unavailable_posts_id, 'comments': self.unavailable_comments_id}
+        response = {'users': self.unavailable_users_id, "posts": self.unavailable_posts_id, 'comments': self.unavailable_comments_id, "tags":  self.unavailable_tags_id}
         print(response)
+        print(" unmatch post -> (user): ", ImportFromJson.unmatch_post_user,"\n",
+        "unmatch comment -> (user): ", ImportFromJson.unmatch_comment_user,"\n",
+        "unmatch comment -> (post): ", ImportFromJson.unmatch_comment_post,"\n",
+        "unmatch comment -> (parent): ", ImportFromJson.unmatch_comment_parent,"\n",
+        "unmatch tag -> (parent): ", ImportFromJson.unmatch_tag_parent,"\n",
+        "unmatch annotation -> (user): ", ImportFromJson.unmatch_annotation_user,"\n",
+        "unmatch annotation -> (tag): ", ImportFromJson.unmatch_annotation_tag,"\n", 
+        "unmatch annotation -> (entity): ", ImportFromJson.unmatch_annotation_entity,"\n")
         return response
 

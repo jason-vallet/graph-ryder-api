@@ -40,3 +40,38 @@ class HardUpdate(Resource):
         importer.create_tags()
         importer.create_annotations()
         return makeResponse(importer.end_import(), 200)
+
+
+class UpdateUsers(Resource):
+    def get(self):
+        importer = ImportFromJson(False)
+        importer.create_users()
+        return makeResponse(importer.end_import(), 200)
+
+
+class UpdatePosts(Resource):
+    def get(self):
+        importer = ImportFromJson(False)
+        importer.create_posts()
+        return makeResponse(importer.end_import(), 200)
+
+
+class UpdateComments(Resource):
+    def get(self):
+        importer = ImportFromJson(False)
+        importer.create_comments()
+        return makeResponse(importer.end_import(), 200)
+
+
+class UpdateTags(Resource):
+    def get(self):
+        importer = ImportFromJson(False)
+        importer.create_tags()
+        return makeResponse(importer.end_import(), 200)
+
+
+class UpdateAnnotations(Resource):
+    def get(self):
+        importer = ImportFromJson(False)
+        importer.create_annotations()
+        return makeResponse(importer.end_import(), 200)
