@@ -42,7 +42,7 @@ class GetUserHydrate(Resource):
         # Get user's posts
         req = "MATCH (find:user {user_id: %d})" % user_id
         req += " MATCH (find)-[:AUTHORSHIP]->(p:post)"
-        req += ' RETURN p.post_id AS post_id, p.label AS post_label, p.creation_date AS post_creation_date'
+        req += ' RETURN p.post_id AS post_id, p.label AS post_label, p.timestamp AS timestamp ORDER BY p.timestamp DESC'
         result = neo4j.query_neo4j(req)
         posts = []
         posts_id = []
@@ -52,8 +52,8 @@ class GetUserHydrate(Resource):
                 if record['post_id'] and record['post_id'] not in posts_id:
                     post = {}
                     post['post_id'] = record['post_id']
-                    post['post_label'] = record['post_label']
-                    post['post_creation_date'] = record['post_creation_date']
+                    post['label'] = record['post_label']
+                    post['timestamp'] = record['timestamp']
                     posts.append(post)
                     posts_id.append(post['post_id'])
             except KeyError:
@@ -62,7 +62,7 @@ class GetUserHydrate(Resource):
         req = "MATCH (find:user {user_id: %d})" % user_id
         req += " MATCH (find)-[:AUTHORSHIP]->(c:comment)"
         req += " OPTIONAL MATCH (c)-[:COMMENTS]->(p:post)"
-        req += ' RETURN c.comment_id AS comment_id, c.label AS comment_label, c.creation_date AS comment_creation_date, p.post_id AS comment_parent_post_id'
+        req += ' RETURN c.comment_id AS comment_id, c.label AS comment_label, c.timestamp AS timestamp, p.post_id AS comment_parent_post_id ORDER BY c.timestamp DESC'
         result = neo4j.query_neo4j(req)
         comments_id = []
         comments = []
@@ -72,8 +72,8 @@ class GetUserHydrate(Resource):
                 if record['comment_id'] and record['comment_id'] not in comments_id:
                     comment = {}
                     comment['comment_id'] = record['comment_id']
-                    comment['comment_label'] = record['comment_label']
-                    comment['comment_creation_date'] = record['comment_creation_date']
+                    comment['label'] = record['comment_label']
+                    comment['timestamp'] = record['timestamp']
                     comment['comment_parent_post_id'] = record['comment_parent_post_id']
                     comments.append(comment)
                     comments_id.append(comment['comment_id'])

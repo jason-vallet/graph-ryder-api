@@ -9,6 +9,7 @@ def add_tag_routes(api):
     api.add_resource(GetTagsByParent, '/tags/parent/<int:parent_tag_id>')
     # Single
     api.add_resource(GetTag, '/tag/<int:tag_id>')
+    api.add_resource(GetTagHydrate, '/tag/hydrate/<int:tag_id>')
 
     # Count
     api.add_resource(CountAllTag, '/tags/count/')

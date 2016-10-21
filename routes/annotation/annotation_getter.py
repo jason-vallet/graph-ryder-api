@@ -21,6 +21,61 @@ class GetAnnotation(Resource):
             return makeResponse("ERROR : Cannot find annotation with id: %d" % annot_id, 204)
 
 
+class GetAnnotationHydrate(Resource):
+    """
+    @api {get} /annotation/hydrate/:id Single annotation information
+    @apiName GetAnnotationHydrate
+    @apiGroup Annotation
+
+    @apiParam {Number} id Annotation unique ID.
+
+    @apiSuccess {Json} object The annotation.
+    """
+    def get(self, annotation_id):
+        req = "MATCH (find:annotation {annotation_id: %d})" % annotation_id
+        req += "MATCH (find)-[:ANNOTATES]->(x)"
+        req += 'RETURN find, labels(x) as test'
+        result = neo4j.query_neo4j(req)
+        #annotation = result.single()['find'].properties
+        annotateComment=False
+        for record in result:
+            annotation = record['find'].properties
+            try:
+                if "comment" in record["test"]:
+                    annotateComment=True
+            except KeyError:
+                return makeResponse("ERROR : Impossible to identify 'entity_type' for annotation with aid: %d" % annotation_id, 205)
+
+        if annotateComment:
+            req = "MATCH (find:annotation {annotation_id: %d})" % annotation_id
+            req += "MATCH (find)-[:ANNOTATES]->(c:comment)"
+            req += "MATCH (c)<-[:AUTHORSHIP]-(u:user)"
+            req += 'RETURN find, c.comment_id as entity_id, c.title as entity_title, c.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "comment" as entity_type ORDER BY c.timestamp DESC'
+        else:
+            req = "MATCH (find:annotation {annotation_id: %d})" % annotation_id
+            req += "MATCH (find)-[:ANNOTATES]->(p:post)"
+            req += "MATCH (p)<-[:AUTHORSHIP]-(u:user)"
+            req += 'RETURN find, p.post_id as entity_id, p.title as entity_title, p.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "post" as entity_type ORDER BY p.timestamp DESC'
+
+        result = neo4j.query_neo4j(req)
+        for record in result:
+            try:
+                annotation['user_id'] = record['user_id']
+                annotation['user_name'] = record['user_name']
+                annotation['entity_id'] = record['entity_id']
+                annotation['entity_title'] = record['entity_title']
+                annotation['entity_timestamp'] = record['entity_timestamp']
+                annotation['entity_type'] = record['entity_type']
+            except KeyError:
+                return makeResponse("ERROR : Cannot find annotation with aid: %d" % annotation_id, 203)
+
+        try:
+            annotation
+        except NameError:
+            return makeResponse("ERROR : Cannot find annotation with aid: %d" % annotation_id, 204)
+        return makeResponse(annotation, 200)
+
+
 class GetAnnotations(Resource):
     def get(self):
         req = "MATCH (a:annotation) RETURN a.annotation_id AS annotation_id, a.quote AS quote"

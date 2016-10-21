@@ -28,21 +28,36 @@ class GetCommentHydrate(Resource):
             try:
                 if record['user_id']:
                     author['user_id'] = record['user_id']
-            except KeyError:
-                pass
-            try:
                 if record['user_name']:
                     author['user_name'] = record['user_name']
-            except KeyError:
-                pass
-            try:
                 if record['post_id']:
                     post['post_id'] = record['post_id']
-            except KeyError:
-                pass
-            try:
                 if record['post_title']:
                     post['post_title'] = record['post_title']
+            except KeyError:
+                pass
+        # annotations
+        req = "MATCH (find:comment {comment_id: %d}) " % comment_id
+        req += "OPTIONAL MATCH (find)<-[:ANNOTATES]-(a:annotation) "
+        req += "OPTIONAL MATCH (a)-[:REFERS_TO]->(t:tag) "
+        req += "RETURN a.annotation_id as annotation_id, a.timestamp as annotation_timestamp, t.tag_id as tag_id, t.label as tag_label"
+        result = neo4j.query_neo4j(req)
+        annotations = []
+        annotations_id = []
+        for record in result:
+            annotation = {} 
+            try:
+                if record['tag_id'] and record['annotation_id'] not in annotations_id:
+                    if record['annotation_id']:
+                        annotation['annotation_id'] = record['annotation_id']
+                    if record['annotation_timestamp']:
+                        annotation['annotation_timestamp'] = record['annotation_timestamp']
+                    if record['tag_id']:
+                        annotation['tag_id'] = record['tag_id']
+                    if record['tag_label']:
+                        annotation['tag_label'] = record['tag_label']
+                    annotations.append(annotation)
+                    annotations_id.append(record['annotation_id'])
             except KeyError:
                 pass
         try:
@@ -51,6 +66,7 @@ class GetCommentHydrate(Resource):
             return "ERROR : Cannot find post with pid: %d" % comment_id, 200
         comment['author'] = author
         comment['post'] = post
+        comment['annotations'] = annotations
         return makeResponse(comment, 200)
 
 

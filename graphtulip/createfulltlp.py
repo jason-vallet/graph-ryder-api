@@ -16,8 +16,8 @@ class CreateFullTlp(object):
         self.tulip_graph = tlp.newGraph()
         self.tulip_graph.setName('opencare')
         # todo pass in parameters labels and colors
-        self.labels = ["title", "subject", "name"]
-        self.colors = {"uid": tlp.Color(51,122,183), "pid": tlp.Color(92,184,92), "cid": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
+        self.labels = ["label", "label", "label"]
+        self.colors = {"user_id": tlp.Color(51,122,183), "post_id": tlp.Color(92,184,92), "comment_id": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -113,11 +113,13 @@ class CreateFullTlp(object):
         nodes_req += "AND NOT (n:Month) "
         nodes_req += "AND NOT (n:Year) "
         nodes_req += "AND NOT (n:TimeTreeRoot) "
-        nodes_req += "AND NOT (n:group_id) "
+        nodes_req += "AND NOT (n:group) "
         nodes_req += "AND NOT (n:role) "
         nodes_req += "AND NOT (n:post_type) "
         nodes_req += "AND NOT (n:language) "
-        nodes_req += "RETURN ID(n),n"
+        nodes_req += "AND NOT (n:tag) "
+        nodes_req += "AND NOT (n:annotation) "
+        nodes_req += "RETURN distinct ID(n),n"
 
         # Prepare edge request
         edges_req = "MATCH (n1)-[e]->(n2) "

@@ -8,7 +8,7 @@ from graphtulip.createtlp import CreateTlp
 
 class ShortestPathBetweenUsers(Resource):
     def get(self, user1_id, user2_id, max_hop):
-        req = "MATCH path=shortestPath((u1:user {uid: %d})-[*..%d]-(u2:user {uid: %d}))RETURN path" % (
+        req = "MATCH path=shortestPath((u1:user {user_id: %d})-[*..%d]-(u2:user {user_id: %d}))RETURN path" % (
             user1_id, max_hop, user2_id)
         print(req)
         results = neo4j.query_neo4j(req)

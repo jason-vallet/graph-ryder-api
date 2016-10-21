@@ -8,6 +8,7 @@ def add_annotation_routes(api):
     api.add_resource(GetAnnotations, '/annotations')
     # Single
     api.add_resource(GetAnnotation, '/annotations/<int:annot_id>')
+    api.add_resource(GetAnnotationHydrate, '/annotations/hydrate/<int:annotation_id>')
     api.add_resource(GetAnnotationsOnPosts, '/annotations/posts')
     api.add_resource(GetAnnotationsByPost, '/annotations/post/<int:post_id>')
     api.add_resource(GetAnnotationsOnComments, '/annotations/comments')

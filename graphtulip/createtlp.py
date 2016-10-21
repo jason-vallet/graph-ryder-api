@@ -135,6 +135,7 @@ class CreateTlp(object):
         node_req += "AND NOT (n:Year) "
         node_req += "AND NOT (n:TimeTreeRoot) "
         node_req += "AND NOT (n:group_id) "
+#        node_req += "AND NOT (n:tag) "
         node_req += "RETURN ID(n),n"
 
         # Get the nodes of Neo4J

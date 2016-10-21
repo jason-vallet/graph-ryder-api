@@ -41,3 +41,19 @@ class CountUsersByTimestamp(Resource):
             users.append({"count": count, "timestamp": record['timestamp']})
             count += 1
         return makeResponse(users, 200)
+
+
+class CountUsers(Resource):
+    """
+    @api {get} /users/count Count users
+    @apiName CountUsers
+    @apiGroup User
+    @apiDescription Count all users
+    """
+    def get(self):
+        req = "MATCH (n:user) RETURN count(*) AS nb_users"
+        result = neo4j.query_neo4j(req)
+        try:
+            return makeResponse(result.single()['nb_users'], 200)
+        except ResultError:
+            return makeResponse("ERROR", 500)

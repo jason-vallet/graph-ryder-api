@@ -20,7 +20,7 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
         req += "OPTIONAL MATCH (find)<-[:AUTHORSHIP]-(author:user) "
         req += "OPTIONAL MATCH (find)<-[:COMMENTS]-(comment:comment) "
         req += "OPTIONAL MATCH (comment)<-[:AUTHORSHIP]-(commentAuthor:user) "
-        req += "RETURN find, author, comment, commentAuthor"
+        req += "RETURN find, author, comment, commentAuthor ORDER BY comment.timestamp DESC"
         result = neo4j.query_neo4j(req)
         comments = []
         author = None
@@ -36,12 +36,39 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
                     comments.append(comment)
             except KeyError:
                 pass
+
+        # annotations
+        req = "MATCH (find:post {post_id: %d}) " % post_id
+        req += "OPTIONAL MATCH (find)<-[:ANNOTATES]-(a:annotation) "
+        req += "OPTIONAL MATCH (a)-[:REFERS_TO]->(t:tag) "
+        req += "RETURN a.annotation_id as annotation_id, a.timestamp as annotation_timestamp, t.tag_id as tag_id, t.label as tag_label ORDER BY a.timestamp DESC"
+        result = neo4j.query_neo4j(req)
+        annotations = []
+        annotations_id = []
+        for record in result:
+            annotation = {} 
+            try:
+                if record['tag_id'] and record['annotation_id'] not in annotations_id:
+                    if record['annotation_id']:
+                        annotation['annotation_id'] = record['annotation_id']
+                    if record['annotation_timestamp']:
+                        annotation['annotation_timestamp'] = record['annotation_timestamp']
+                    if record['tag_id']:
+                        annotation['tag_id'] = record['tag_id']
+                    if record['tag_label']:
+                        annotation['tag_label'] = record['tag_label']
+                    annotations.append(annotation)
+                    annotations_id.append(record['annotation_id'])
+            except KeyError:
+                pass
+
         try:
             post
         except NameError:
             return "ERROR : Cannot find post with pid: %d" % post_id, 200
         post['comments'] = comments
         post['author'] = author
+        post['annotations'] = annotations
         return makeResponse(post, 200)
 
 

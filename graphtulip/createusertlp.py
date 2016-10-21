@@ -16,8 +16,8 @@ class CreateUserTlp(object):
         self.tulip_graph = tlp.newGraph()
         self.tulip_graph.setName('opencare')
         # todo pass in parameters labels and colors
-        self.labels = ["title", "subject", "name"]
-        self.colors = {"uid": tlp.Color(51,122,183), "pid": tlp.Color(92,184,92), "cid": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
+        self.labels = ["label", "label", "label"]
+        self.colors = {"user_id": tlp.Color(51,122,183), "post_id": tlp.Color(92,184,92), "comment_id": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -118,18 +118,22 @@ class CreateUserTlp(object):
                 edgeProperties["type"][e] = "curvedArrow"
                 # post
                 edgeProperties["post_title"] = self.tulip_graph.getStringProperty("post_title")
-                edgeProperties["post_title"][e] = qr[5]['title']
-                edgeProperties["post_body"] = self.tulip_graph.getStringProperty("post_body")
-                edgeProperties["post_body"][e] = qr[5]['body']
-                edgeProperties["pid"] = self.tulip_graph.getIntegerProperty("pid")
-                edgeProperties["pid"][e] = qr[5]['pid']
+                if qr[5]['title']:
+                    edgeProperties["post_title"][e] = qr[5]['title']
+                edgeProperties["post_content"] = self.tulip_graph.getStringProperty("post_content")
+                if qr[5]['content']:
+                    edgeProperties["post_content"][e] = qr[5]['content']
+                edgeProperties["post_id"] = self.tulip_graph.getIntegerProperty("post_id")
+                edgeProperties["post_id"][e] = qr[5]['post_id']
                 # comment
-                edgeProperties["comment_subject"] = self.tulip_graph.getStringProperty("comment_subject")
-                edgeProperties["comment_subject"][e] = qr[4]['subject']
-                edgeProperties["comment_body"] = self.tulip_graph.getStringProperty("comment_body")
-                edgeProperties["comment_body"][e] = qr[4]['comment']
-                edgeProperties["cid"] = self.tulip_graph.getIntegerProperty("cid")
-                edgeProperties["cid"][e] = qr[4]['cid']
+                edgeProperties["comment_title"] = self.tulip_graph.getStringProperty("comment_title")
+                if qr[4]['title']:
+                    edgeProperties["comment_title"][e] = qr[4]['title']
+                edgeProperties["comment_content"] = self.tulip_graph.getStringProperty("comment_content")
+                if qr[4]['content']:
+                    edgeProperties["comment_content"][e] = qr[4]['content']
+                edgeProperties["comment_id"] = self.tulip_graph.getIntegerProperty("comment_id")
+                edgeProperties["comment_id"][e] = qr[4]['comment_id']
                 edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
                 edgeProperties["viewColor"][e] = self.colors['edges']
 
@@ -148,19 +152,20 @@ class CreateUserTlp(object):
                 edgeProperties["type"] = self.tulip_graph.getStringProperty("type")
                 edgeProperties["type"][e] = "curvedArrow"
                 # comment 1
-                edgeProperties["comment1_subject"] = self.tulip_graph.getStringProperty("comment1_subject")
-                edgeProperties["comment1_subject"][e] = qr[2]['subject']
-                edgeProperties["comment1_body"] = self.tulip_graph.getStringProperty("comment1_body")
-                edgeProperties["comment1_body"][e] = qr[2]['comment']
-                edgeProperties["cid1"] = self.tulip_graph.getIntegerProperty("cid1")
-                edgeProperties["cid1"][e] = qr[2]['cid']
+                edgeProperties["comment1_title"] = self.tulip_graph.getStringProperty("comment1_title")
+                if qr[2]['title']:
+                    edgeProperties["comment1_title"][e] = qr[2]['title']
+                edgeProperties["comment1_content"] = self.tulip_graph.getStringProperty("comment1_content")
+                edgeProperties["comment1_content"][e] = qr[2]['content']
+                edgeProperties["comment_id1"] = self.tulip_graph.getIntegerProperty("comment_id1")
+                edgeProperties["comment_id1"][e] = qr[2]['comment_id']
                 # comment 2
-                edgeProperties["comment2_subject"] = self.tulip_graph.getStringProperty("comment2_subject")
-                edgeProperties["comment2_subject"][e] = qr[3]['subject']
-                edgeProperties["comment2_body"] = self.tulip_graph.getStringProperty("comment2_body")
-                edgeProperties["comment2_body"][e] = qr[3]['comment']
-                edgeProperties["cid2"] = self.tulip_graph.getIntegerProperty("cid2")
-                edgeProperties["cid2"][e] = qr[3]['cid']
+                edgeProperties["comment2_title"] = self.tulip_graph.getStringProperty("comment2_title")
+                edgeProperties["comment2_title"][e] = qr[3]['title']
+                edgeProperties["comment2_content"] = self.tulip_graph.getStringProperty("comment2_content")
+                edgeProperties["comment2_content"][e] = qr[3]['content']
+                edgeProperties["comment_id2"] = self.tulip_graph.getIntegerProperty("comment_id2")
+                edgeProperties["comment_id2"][e] = qr[3]['comment_id']
                 edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
                 edgeProperties["viewColor"][e] = self.colors['edges']
 
