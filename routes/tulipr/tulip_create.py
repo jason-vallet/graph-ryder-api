@@ -7,6 +7,7 @@ from routes.utils import makeResponse
 from graphtulip.createtlp import CreateTlp
 from graphtulip.createfulltlp import CreateFullTlp
 from graphtulip.createusertlp import CreateUserTlp
+from graphtulip.createtagtlp import CreateTagTlp
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -41,6 +42,20 @@ class GenerateUserGraph(Resource):
         creator = CreateUserTlp()
         creator.create(private_gid)
         self.gid_stack.update({"usersToUsers": private_gid})
+        return makeResponse(True)
+
+
+class GenerateTagGraph(Resource):
+    def __init__(self, **kwargs):
+        self.gid_stack = kwargs['gid_stack']
+
+    def get(self, value):
+        if 'tagToTags' in self.gid_stack.keys():
+            os.remove('%s%s.tlp' % (config['exporter']['tlp_path'], self.gid_stack.pop("tagToTags")))
+        private_gid = uuid.uuid4().urn[9:]
+        creator = CreateTagTlp(value)
+        creator.create(private_gid)
+        self.gid_stack.update({"tagToTags": private_gid})
         return makeResponse(True)
 
 
