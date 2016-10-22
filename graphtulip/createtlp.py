@@ -25,8 +25,8 @@ class CreateTlp(object):
         self.indexNodes = {}
 
         # todo pass in parameters labels and colors
-        self.labels = ["title", "subject", "name"]
-        self.colors = {"uid": tlp.Color(51,122,183), "pid": tlp.Color(92,184,92), "cid": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
+        self.labels = ["label", "label", "label"]
+        self.colors = {"user_id": tlp.Color(51,122,183), "post_id": tlp.Color(92,184,92), "comment_id": tlp.Color(240, 173, 78),  "edges": tlp.Color(204, 204, 204)}
 
     def managePropertiesEntity(self, entTlp, entN4J, entProperties):
         for i in entN4J.properties:
@@ -130,12 +130,16 @@ class CreateTlp(object):
         node_req += "WHERE NOT (n:%s) " % types[0]
         for type in types[1:]:
             node_req += "AND NOT (n:%s) " % type
+        node_req += "AND NOT (n:language) "
+        node_req += "AND NOT (n:group) "
+        node_req += "AND NOT (n:post_type) "
+        node_req += "AND NOT (n:role) "
+        node_req += "AND NOT (n:tag) "
+        node_req += "AND NOT (n:annotation) "
         node_req += "AND NOT (n:Day) "
         node_req += "AND NOT (n:Month) "
         node_req += "AND NOT (n:Year) "
         node_req += "AND NOT (n:TimeTreeRoot) "
-        node_req += "AND NOT (n:group_id) "
-#        node_req += "AND NOT (n:tag) "
         node_req += "RETURN ID(n),n"
 
         # Get the nodes of Neo4J
@@ -149,11 +153,29 @@ class CreateTlp(object):
         edges_req += "AND NOT (n1:%s) " % types[0]
         for type in types[1:]:
             edges_req += "AND NOT (n1:%s) " % type
+        edges_req += "AND NOT (n2:%s) " % types[0]
+        for type in types[1:]:
+            edges_req += "AND NOT (n2:%s) " % type
         edges_req += "AND NOT (n1:Day) "
         edges_req += "AND NOT (n1:Month) "
         edges_req += "AND NOT (n1:Year) "
         edges_req += "AND NOT (n1:TimeTreeRoot) "
-        edges_req += "AND NOT (n1:group_id) "
+        edges_req += "AND NOT (n1:language) "
+        edges_req += "AND NOT (n1:group) "
+        edges_req += "AND NOT (n1:post_type) "
+        edges_req += "AND NOT (n1:role) "
+        edges_req += "AND NOT (n1:tag) "
+        edges_req += "AND NOT (n1:annotation) "
+        edges_req += "AND NOT (n2:language) "
+        edges_req += "AND NOT (n2:group) "
+        edges_req += "AND NOT (n2:post_type) "
+        edges_req += "AND NOT (n2:role) "
+        edges_req += "AND NOT (n2:tag) "
+        edges_req += "AND NOT (n2:annotation) "
+        edges_req += "AND NOT (n2:Day) "
+        edges_req += "AND NOT (n2:Month) "
+        edges_req += "AND NOT (n2:Year) "
+        edges_req += "AND NOT (n2:TimeTreeRoot) "
         edges_req += "RETURN ID(e),ID(n1),ID(n2),n2,e"
 
         # Get the edges of Neo4J

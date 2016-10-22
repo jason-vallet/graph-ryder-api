@@ -144,6 +144,21 @@ class ImportFromJson(object):
 
             # Author
             if post_fields['user_id']:
+                try:
+                    req = "MATCH (u:user { user_id : %s }) RETURN u" % post_fields['user_id']
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : post post_id : %d has no author user_id : %s. Creating one." % (post_node['post_id'], post_fields['user_id']))
+
+                    user_node = Node('user')
+                    user_node['user_id'] = int(post_fields['user_id'])
+                    if post_fields['user_name']:
+                        user_node['label'] = cleanString(post_fields['user_name'])
+                    if post_fields['user_name']:
+                        user_node['name'] = cleanString(post_fields['user_name'])
+                    self.neo4j_graph.merge(user_node)
+
                 try :
                     req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
                     req += " MATCH (u:user { user_id : %s })" % post_fields['user_id']
