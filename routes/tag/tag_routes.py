@@ -15,3 +15,5 @@ def add_tag_routes(api):
     api.add_resource(CountAllTag, '/tags/count/')
     api.add_resource(CountTagsByParent, '/tags/count/parent/<int:parent_tag_id>')
 
+    api.add_resource(TagsByDate, '/tags/<int:timestamp1>/<int:timestamp2>/<int:limit>')
+

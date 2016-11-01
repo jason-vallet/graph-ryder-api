@@ -39,12 +39,12 @@ class ImportFromJson(object):
         self.unavailable_tags_id = []
         self.unavailable_annotations_id = []
 
-    def create_users(self):
+    def create_users(self, json_users):
         query_neo4j("CREATE CONSTRAINT ON (n:user) ASSERT n.user_id IS UNIQUE")
         query_neo4j("CREATE CONSTRAINT ON (l:language) ASSERT l.name IS UNIQUE")
         query_neo4j("CREATE CONSTRAINT ON (r:role) ASSERT r.name IS UNIQUE")
         print('Import users')
-        json_users = json.load(open(config['importer']['json_users_path']))
+        #json_users = json.load(open(config['importer']['json_users_path']))
         for user_entry in json_users['nodes']:
             user_node = Node('user')
             user_fields = user_entry['node']
@@ -81,7 +81,11 @@ class ImportFromJson(object):
             if user_fields['url_twitter']:
                 user_node['url_twitter'] = cleanString(user_fields['url_twitter'])
  
-            self.neo4j_graph.merge(user_node)
+            try:
+                self.neo4j_graph.merge(user_node)
+            except ConstraintError:
+                if ImportFromJson.verbose:
+                    print("WARNING: User uid %s already exists" % user_node['user_id'] )
 
             # Add relation
             # Language
@@ -108,10 +112,10 @@ class ImportFromJson(object):
                 query_neo4j(req)
 
 
-    def create_posts(self):
+    def create_posts(self, json_posts):
         query_neo4j("CREATE CONSTRAINT ON (p:post) ASSERT p.post_id IS UNIQUE")
         print('Import posts')
-        json_posts = json.load(open(config['importer']['json_posts_path']))
+        #json_posts = json.load(open(config['importer']['json_posts_path']))
         ImportFromJson.unmatch_post_user = 0
         for post_entry in json_posts['nodes']:
             post_node = Node('post')
@@ -124,8 +128,14 @@ class ImportFromJson(object):
             if post_fields['content']:
                 post_node['content'] = cleanString(post_fields['content'])
             if post_fields['creation_date']:
-                post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'][:-24], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
-            self.neo4j_graph.merge(post_node)
+                #print ("t"+post_fields['creation_date'][:21])
+                post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'][:21], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                #post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
+            try:
+                self.neo4j_graph.merge(post_node)
+            except ConstraintError:
+                if ImportFromJson.verbose:
+                    print("WARNING: Post pid %s already exists" % post_node['post_id'] )
 
             # Add relation
             # Type
@@ -173,16 +183,16 @@ class ImportFromJson(object):
 
             # TimeTree
             if post_fields['creation_date']:
-                timestamp = int(time.mktime(datetime.strptime(post_fields['creation_date'][:-24], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                timestamp = int(time.mktime(datetime.strptime(post_fields['creation_date'][:21], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
                 req = "MATCH (p:post { post_id : %d }) WITH p " % post_node['post_id']
                 req += "CALL ga.timetree.events.attach({node: p, time: %s, relationshipType: 'POST_ON'}) " % timestamp
                 req += "YIELD node RETURN p"
                 query_neo4j(req)
 
-    def create_comments(self):
+    def create_comments(self, json_comments):
         query_neo4j("CREATE CONSTRAINT ON (c:comment) ASSERT c.comment_id IS UNIQUE")
         print('Import comments')
-        json_comments = json.load(open(config['importer']['json_comments_path']))
+        #json_comments = json.load(open(config['importer']['json_comments_path']))
         ImportFromJson.unmatch_comment_user = 0
         ImportFromJson.unmatch_comment_post = 0
         ImportFromJson.unmatch_comment_parent = 0
@@ -198,7 +208,11 @@ class ImportFromJson(object):
                 comment_node['content'] = cleanString(comment_fields['content'])
             if comment_fields['creation_date']:
                 comment_node['timestamp'] = int(time.mktime(datetime.strptime(comment_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
-            self.neo4j_graph.merge(comment_node)
+            try:
+                self.neo4j_graph.merge(comment_node)
+            except ConstraintError:
+                if ImportFromJson.verbose:
+                    print("WARNING: Comment cid %s already exists" % cooment_node['comment_id'] )
 
             # Add relation
             # Language
@@ -265,10 +279,10 @@ class ImportFromJson(object):
                     if comment_fields['parent_comment_id'] not in self.unavailable_comments_id:
                         self.unavailable_comments_id.append(comment_fields['parent_comment_id'])
 
-    def create_tags(self):
+    def create_tags(self, json_tags):
         query_neo4j("CREATE CONSTRAINT ON (t:tag) ASSERT t.tag_id IS UNIQUE")
         print('Import tags')
-        json_tags = json.load(open(config['importer']['json_tags_path']))
+        #json_tags = json.load(open(config['importer']['json_tags_path']))
         ImportFromJson.unmatch_tag_parent = 0
         for tag_entry in json_tags['nodes']:
             tag_node = Node('tag')
@@ -278,7 +292,11 @@ class ImportFromJson(object):
                 tag_node['label'] = cleanString(tag_fields['label'])
             if tag_fields['name']:
                 tag_node['name'] = cleanString(tag_fields['name'])
-            self.neo4j_graph.merge(tag_node)
+            try:
+                self.neo4j_graph.merge(tag_node)
+            except ConstraintError:
+                if ImportFromJson.verbose:
+                    print("WARNING: Tag tid %s already exists" % tag_node['tag_id'] )
 
         # ParentTags
         for tag_entry in json_tags['nodes']:
@@ -299,10 +317,10 @@ class ImportFromJson(object):
                     if tag_fields['parent_tag_id'] not in self.unavailable_tags_id:
                         self.unavailable_tags_id.append(tag_fields['parent_tag_id'])
 
-    def create_annotations(self):
+    def create_annotations(self, json_annotations):
         query_neo4j("CREATE CONSTRAINT ON (a:annotation) ASSERT a.annotation_id IS UNIQUE")
         print('Import annotations')
-        json_annotations = json.load(open(config['importer']['json_annotations_path']))
+        #json_annotations = json.load(open(config['importer']['json_annotations_path']))
         ImportFromJson.unmatch_annotation_user = 0
         ImportFromJson.unmatch_annotation_tag = 0 
         ImportFromJson.unmatch_annotation_entity = 0
@@ -316,7 +334,11 @@ class ImportFromJson(object):
                 annotation_node['quote'] = cleanString(annotation_fields['quote'])
             if annotation_fields['creation_date']:
                 annotation_node['timestamp'] = int(time.mktime(datetime.strptime(annotation_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
-            self.neo4j_graph.merge(annotation_node)
+            try:
+                self.neo4j_graph.merge(annotation_node)
+            except ConstraintError:
+                if ImportFromJson.verbose:
+                    print("WARNING: Annotation aid %s already exists" % annotation_node['annotation_id'] )
 
             # Add relation
             # Author
