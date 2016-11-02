@@ -128,8 +128,9 @@ class ImportFromJson(object):
             if post_fields['content']:
                 post_node['content'] = cleanString(post_fields['content'])
             if post_fields['creation_date']:
-                #print ("t"+post_fields['creation_date'][:21])
-                post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'][:21], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                tmp_date = post_fields['creation_date'].split(" ")
+                post_node['timestamp'] = int(time.mktime(datetime.strptime(tmp_date[0]+' '+tmp_date[1]+' '+tmp_date[2], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                #print("Date ("+post_fields['creation_date']+ ") is uncompatbile when split in: "+post_fields['creation_date'][:21])
                 #post_node['timestamp'] = int(time.mktime(datetime.strptime(post_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
             try:
                 self.neo4j_graph.merge(post_node)
@@ -183,7 +184,7 @@ class ImportFromJson(object):
 
             # TimeTree
             if post_fields['creation_date']:
-                timestamp = int(time.mktime(datetime.strptime(post_fields['creation_date'][:21], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
+                timestamp = int(time.mktime(datetime.strptime(tmp_date[0]+' '+tmp_date[1]+' '+tmp_date[2], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
                 req = "MATCH (p:post { post_id : %d }) WITH p " % post_node['post_id']
                 req += "CALL ga.timetree.events.attach({node: p, time: %s, relationshipType: 'POST_ON'}) " % timestamp
                 req += "YIELD node RETURN p"
@@ -340,10 +341,25 @@ class ImportFromJson(object):
                 if ImportFromJson.verbose:
                     print("WARNING: Annotation aid %s already exists" % annotation_node['annotation_id'] )
 
+            to_pass = False
             # Add relation
             # Author
             if annotation_fields['user_id']:
-                result = query_neo4j("MATCH (u:user { user_id : %s }) RETURN u" % annotation_fields['user_id'])
+                try:
+                    req = "MATCH (u:user { user_id : %s }) RETURN u" % annotation_fields['user_id']
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : Resolved about annotation aid : %d had no author uid : %s" % (annotation_node['annotation_id'], annotation_fields['user_id']))
+
+                    user_node = Node('user')
+                    user_node['user_id'] = int(annotation_fields['user_id'])
+                    if annotation_fields['user_name']:
+                        user_node['label'] = cleanString(annotation_fields['user_name'])
+                    if annotation_fields['user_name']:
+                        user_node['name'] = cleanString(annotation_fields['user_name'])
+                    self.neo4j_graph.merge(user_node)
+
                 try:
                     req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
                     req += "MATCH (u:user { user_id : %s }) " % annotation_fields['user_id']
@@ -356,8 +372,9 @@ class ImportFromJson(object):
                     query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation_node['annotation_id'])
                     if annotation_fields['user_id'] not in self.unavailable_users_id:
                         self.unavailable_users_id.append(annotation_fields['user_id'])
+                    to_pass = True
             # Tag
-            if annotation_fields['tag_id']:
+            if annotation_fields['tag_id'] and not to_pass:
                 try:
                     req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
                     req += "MATCH (t:tag { tag_id : %s }) " % annotation_fields['tag_id'].replace(",", "")
@@ -370,8 +387,9 @@ class ImportFromJson(object):
                     query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation_node['annotation_id'])
                     if annotation_fields['tag_id'] not in self.unavailable_tags_id:
                         self.unavailable_tags_id.append(annotation_fields['tag_id'])
+                    to_pass = True
             # Post/comment
-            if annotation_fields['entity_id']:
+            if annotation_fields['entity_id'] and not to_pass:
                 try:
                     req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
                     if str(annotation_fields['entity_type'])==str('comment') :

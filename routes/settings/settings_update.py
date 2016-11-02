@@ -1,6 +1,7 @@
 import psutil
 import requests
 import time
+import json
 from time import strftime
 from flask_restful import Resource, reqparse
 from importer.importFromJson import ImportFromJson
@@ -90,21 +91,19 @@ class UpdateFromEdgeRyders(Resource):
 class HardUpdateFromEdgeRyders(Resource):
     def get(self):
         importer = ImportFromJson(True)
-        req= requests.get(config['importer_edgeryders']['json_users_path'])
-        json_file = req.json()
-        req= requests.get(open(config['importer_edgeryders']['json_users_path']))
-        json_file = req.json()
-        importer.create_users(json_file)
-        req= requests.get(open(config['importer_edgeryders']['json_posts_path']))
+        #req= requests.get(config['importer_edgeryders']['json_users_path'])
+        #json_file = req.json()
+        #importer.create_users(json_file)
+        req= requests.get(config['importer_edgeryders']['json_posts_path'])
         json_file = req.json()
         importer.create_posts(json_file)
-        req= requests.get(open(config['importer_edgeryders']['json_comments_path']))
+        req= requests.get(config['importer_edgeryders']['json_comments_path'])
         json_file = req.json()
         importer.create_comments(json_file)
-        req= requests.get(open(config['importer_edgeryders']['json_tags_path']))
+        req= requests.get(config['importer_edgeryders']['json_tags_path'])
         json_file = req.json()
         importer.create_tags(json_file)
-        req= requests.get(open(config['importer_edgeryders']['json_annotations_path']))
+        req= requests.get(config['importer_edgeryders']['json_annotations_path'])
         json_file = req.json()
         importer.create_annotations(json_file)
         return makeResponse(importer.end_import(), 200)
