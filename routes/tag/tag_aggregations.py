@@ -37,3 +37,19 @@ class TagsByDate(Resource):
         except ResultError:
             return makeResponse("ERROR", 500)
 
+class CoocurrencesByTag(Resource):
+    def get(self, tag_id):
+        req = "MATCH (t1: tag {tag_id: %d})--(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2:annotation)--(t2: tag) where t1<>t2 return t2, count(e) as count order by count desc" % tag_id
+        result = neo4j.query_neo4j(req)
+        tags = []
+        for record in result:
+            tag = record['t2'].properties
+            if record['count']:
+                tag['count'] = record['count']
+            tags.append(tag) 
+        try:
+            return makeResponse(tags,200)
+        except ResultError:
+            return makeResponse("ERROR",500)
+
+

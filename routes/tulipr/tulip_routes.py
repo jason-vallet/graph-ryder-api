@@ -21,6 +21,8 @@ def add_tulip_routes(api):
     api.add_resource(GenerateFullGraph, '/generateFullGraph', resource_class_kwargs={'gid_stack': gid_stack })
     api.add_resource(GenerateUserGraph, '/generateUserGraph', resource_class_kwargs={'gid_stack': gid_stack })
     api.add_resource(GenerateTagGraph, '/generateTagGraph/<int:value>', resource_class_kwargs={'gid_stack': gid_stack })
+    api.add_resource(GenerateTagDateGraph, '/generateTagDateGraph/<int:value>/<int:start>/<int:end>', resource_class_kwargs={'gid_stack': gid_stack })
+    api.add_resource(GenerateTagFullGraph, '/generateTagFullGraph/<int:value>/<int:start>/<int:end>', resource_class_kwargs={'gid_stack': gid_stack })
     api.add_resource(GenerateGraphWithoutUser, '/generateCommentAndPostGraph', resource_class_kwargs={'gid_stack': gid_stack })
     api.add_resource(GenerateGraphs, '/generateGraphs', resource_class_kwargs={'gid_stack': gid_stack })
 
