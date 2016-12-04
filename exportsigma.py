@@ -72,6 +72,7 @@ class ExportSigma(tlp.ExportModule):
                         os << '"label":"node%s", ' % node.id
                 # node size
                 elif prop.getName() == "viewSize":
+                    #print(prop.getNodeStringValue(node))
                     size = prop.getNodeStringValue(node)[1:-1].split(',')
                     size = (int(size[0]) + int(size[1])) / 2
                     os << '"size":%s, ' % size
