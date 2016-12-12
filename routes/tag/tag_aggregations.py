@@ -52,4 +52,20 @@ class CoocurrencesByTag(Resource):
         except ResultError:
             return makeResponse("ERROR",500)
 
+class ContentWithCommonTagsByDate(Resource):
+    def get(self, tag_id1, tag_id2, start_date, end_date):
+        req = "match (t1: tag {tag_id: %d})<-[:REFERS_TO]-(a: annotation)-[:ANNOTATES]->(e) " % tag_id1
+        req += "match (e)<-[:ANNOTATES]-(a2: annotation)-[:REFERS_TO]->(t2: tag {tag_id: %d}) " % tag_id2
+        req += "match (e)<-[:AUTHORSHIP]-(u: user) "
+        req += "where e.timestamp >= %d and e.timestamp <= %d " % (start_date, end_date)
+        req += "return distinct t1.tag_id, CASE e.post_id when null then e.comment_id else e.post_id end as id, CASE e.post_id when null then 'comment' else 'post' end as entity_type, e.timestamp as timestamp, e.label as label, u.user_id as user_id, u.label as user_label, t2.tag_id ORDER BY e.timestamp DESC"
+        result = neo4j.query_neo4j(req)
+
+        tags = []
+        for record in result:
+            tags.append({'id': record['id'], "entity_type": record['entity_type'], "timestamp": record['timestamp'], 'label': record['label'], 'user_id': record['user_id'], 'user_label': record['user_label']}) 
+        try:
+            return makeResponse(tags,200)
+        except ResultError:
+            return makeResponse("ERROR",500)
 

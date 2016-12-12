@@ -9,6 +9,7 @@ from graphtulip.createfulltlp import CreateFullTlp
 from graphtulip.createusertlp import CreateUserTlp
 from graphtulip.createtagtlp import CreateTagTlp
 from graphtulip.createtagdatetlp import CreateTagDateTlp
+from graphtulip.createtagfocustlp import CreateTagFocusTlp
 from graphtulip.createtagfulltlp import CreateTagFullTlp
 
 config = configparser.ConfigParser()
@@ -75,7 +76,7 @@ class GenerateTagDateGraph(Resource):
         return makeResponse(True)
 
 
-class GenerateTagFullGraph(Resource):
+class GenerateTagFocusGraph(Resource):
     def __init__(self, **kwargs):
         self.gid_stack = kwargs['gid_stack']
 
@@ -83,7 +84,21 @@ class GenerateTagFullGraph(Resource):
         if 'tagToTags' in self.gid_stack.keys():
             os.remove('%s%s.tlp' % (config['exporter']['tlp_path'], self.gid_stack.pop("tagToTags")))
         private_gid = uuid.uuid4().urn[9:]
-        creator = CreateTagFullTlp(value, start, end)
+        creator = CreateTagFocusTlp(value, start, end)
+        creator.create(private_gid)
+        self.gid_stack.update({"tagToTags": private_gid})
+        return makeResponse(True)
+
+
+class GenerateTagFullGraph(Resource):
+    def __init__(self, **kwargs):
+        self.gid_stack = kwargs['gid_stack']
+
+    def get(self, value, start, end, force_fresh):
+        if 'tagToTags' in self.gid_stack.keys():
+            os.remove('%s%s.tlp' % (config['exporter']['tlp_path'], self.gid_stack.pop("tagToTags")))
+        private_gid = uuid.uuid4().urn[9:]
+        creator = CreateTagFullTlp(value, start, end, force_fresh)
         creator.create(private_gid)
         self.gid_stack.update({"tagToTags": private_gid})
         return makeResponse(True)
