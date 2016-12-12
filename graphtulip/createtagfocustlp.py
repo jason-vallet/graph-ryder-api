@@ -82,6 +82,9 @@ class CreateTagFocusTlp(object):
         labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
         entityType = self.tulip_graph.getStringProperty("entityType")
         nodeProperties = {}
+        nodeProperties['viewLabel'] = self.tulip_graph.getStringProperty("viewLabel")
+        nodeProperties['tag_id'] = self.tulip_graph.getStringProperty("tag_id")
+        nodeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
         edgeProperties = {}
         indexTags = {}
         indexPosts = {}
@@ -90,7 +93,7 @@ class CreateTagFocusTlp(object):
         # Prepare tags and posts request
         req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: post) "
         req+= "WHERE e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-        req+= "RETURN t.tag_id, e.post_id, t, e, count(t) as strength"
+        req+= "RETURN t.tag_id, e.post_id, t.label, e.label, count(t) as strength"
         result = self.neo4j_graph.run(req)
 
         # Get the posts
@@ -100,15 +103,16 @@ class CreateTagFocusTlp(object):
                 n = self.tulip_graph.addNode()
                 indexTags[qr[0]] = n
                 #tmpIDNode[n] = qr[0]
-                self.managePropertiesEntity(n, qr[2], nodeProperties)
-                self.manageLabelsNode(labelsNodeTlp, n, qr[2])
+                nodeProperties['viewLabel'][n] = str(qr[2])
+                nodeProperties['tag_id'][n] = str(qr[0])
+                nodeProperties["viewColor"][n] = self.colors["tag_id"]
                 entityType[n] = "tag"
             if not qr[1] in indexPosts:
                 n = self.tulip_graph.addNode()
                 indexPosts[qr[1]] = n
                 #tmpIDNode[n] = qr[1]
-                self.managePropertiesEntity(n, qr[3], nodeProperties)
-                self.manageLabelsNode(labelsNodeTlp, n, qr[3])
+                nodeProperties['viewLabel'][n] = str(qr[3])
+                nodeProperties["viewColor"][n] = self.colors["post_id"]
                 entityType[n] = "post"
 
             e = self.tulip_graph.addEdge(indexTags[qr[0]], indexPosts[qr[1]])
@@ -116,7 +120,7 @@ class CreateTagFocusTlp(object):
         # Prepare tags and comments request
         req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: comment) "
         req+= "WHERE e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-        req+= "RETURN t.tag_id, e.comment_id, t, e, count(t) as strength"
+        req+= "RETURN t.tag_id, e.comment_id, t.label, e.label, count(t) as strength"
         result = self.neo4j_graph.run(req)
 
         # Get the comments
@@ -126,15 +130,16 @@ class CreateTagFocusTlp(object):
                 n = self.tulip_graph.addNode()
                 indexTags[qr[0]] = n
                 #tmpIDNode[n] = qr[0]
-                self.managePropertiesEntity(n, qr[2], nodeProperties)
-                self.manageLabelsNode(labelsNodeTlp, n, qr[2])
+                nodeProperties['viewLabel'][n] = str(qr[2])
+                nodeProperties['tag_id'][n] = str(qr[0])
+                nodeProperties["viewColor"][n] = self.colors["tag_id"]
                 entityType[n] = "tag"
             if not qr[1] in indexComments:
                 n = self.tulip_graph.addNode()
                 indexComments[qr[1]] = n
                 #tmpIDNode[n] = qr[1]
-                self.managePropertiesEntity(n, qr[3], nodeProperties)
-                self.manageLabelsNode(labelsNodeTlp, n, qr[3])
+                nodeProperties['viewLabel'][n] = str(qr[3])
+                nodeProperties["viewColor"][n] = self.colors["comment_id"]
                 entityType[n] = "comment"
 
             e = self.tulip_graph.addEdge(indexTags[qr[0]], indexComments[qr[1]])
@@ -148,6 +153,10 @@ class CreateTagFocusTlp(object):
         edgeProperties["type"] = self.tulip_graph.getStringProperty("type")
         edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
         edgeProperties["viewSize"] = self.tulip_graph.getSizeProperty("viewSize")
+        edgeProperties["tag_1"] = self.tulip_graph.getStringProperty("tag_1")
+        edgeProperties["label_1"] = self.tulip_graph.getStringProperty("label_1")
+        edgeProperties["tag_2"] = self.tulip_graph.getStringProperty("tag_2")
+        edgeProperties["label_2"] = self.tulip_graph.getStringProperty("label_2")
         for t1 in indexTags:
             edgeProperties["TagTagSelection"][indexTags[t1]] = True
             for p in self.tulip_graph.getOutNodes(indexTags[t1]):
@@ -175,6 +184,10 @@ class CreateTagFocusTlp(object):
                                 labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
                                 edgeProperties["type"][e] = "curvedArrow"
                                 edgeProperties["viewColor"][e] = self.colors['edges']
+                                edgeProperties["tag_1"][e] = str(nodeProperties['tag_id'][indexTags[t1]])
+                                edgeProperties["tag_2"][e] = str(nodeProperties['tag_id'][t2])
+                                edgeProperties["label_1"][e] = str(nodeProperties['viewLabel'][indexTags[t1]])
+                                edgeProperties["label_2"][e] = str(nodeProperties['viewLabel'][t2])
         sg = self.tulip_graph.addSubGraph(edgeProperties["TagTagSelection"])
 
         print("Compute focus Tag-Tag subgraph")

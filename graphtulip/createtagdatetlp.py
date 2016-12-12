@@ -81,8 +81,9 @@ class CreateTagDateTlp(object):
         tmpIDEdge = self.tulip_graph.getIntegerProperty("tmpIDEdge")
         labelsNodeTlp = self.tulip_graph.getStringVectorProperty("labelsNodeTlp")
         labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
-        nodeProperties = {}
-        edgeProperties = {}
+        entProperties = {}
+        entProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
+        entProperties["tag_id"] = self.tulip_graph.getStringProperty("tag_id")
         indexNodes = {}
 
         req = "MATCH (t1: tag {tag_id: %d}) RETURN t1.tag_id, t1" % self.tag_id_src
@@ -90,7 +91,7 @@ class CreateTagDateTlp(object):
 
         for qr in result:
             n = self.tulip_graph.addNode()
-            self.managePropertiesEntity(n, qr[1], nodeProperties)
+            self.managePropertiesEntity(n, qr[1], entProperties)
             self.manageLabelsNode(labelsNodeTlp, n, qr[1])
             tmpIDNode[n] = qr[0]
             # keep the reference for edges creation
@@ -101,50 +102,37 @@ class CreateTagDateTlp(object):
         req = "MATCH (t1:tag {tag_id: %d})<-[:REFERS_TO]-(a1:annotation)-[:ANNOTATES]->(e) " % self.tag_id_src
         req+= "MATCH (t2:tag)<-[:REFERS_TO]-(a2:annotation)-[:ANNOTATES]->(e) "
         req+= "WHERE a1<>a2 AND t1 <> t2 AND e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-        req+= "RETURN t1.tag_id, t2.tag_id, t1, t2, count(t1) as strength"
+        req+= "RETURN t1.tag_id, t2.tag_id, t1.label, t2.label, count(t1) as strength"
         #req = "MATCH (t1: tag {tag_id: %d})--(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2: annotation)--(t2: tag) WHERE t1 <> t2 RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength" % self.tag_id_src
         result = self.neo4j_graph.run(req)
 
-        # Get the tags
-        print("Read Tags")
+        entProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
+        entProperties["type"] = self.tulip_graph.getStringProperty("type")
+        entProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
+        entProperties["tag_1"] = self.tulip_graph.getStringProperty("tag_1")
+        entProperties["label_1"] = self.tulip_graph.getStringProperty("label_1")
+        entProperties["tag_2"] = self.tulip_graph.getStringProperty("tag_2")
+        entProperties["label_2"] = self.tulip_graph.getStringProperty("label_2")
+        # Get the edges #  RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength
+        result = self.neo4j_graph.run(req)
         for qr in result:
             n = self.tulip_graph.addNode()
-            self.managePropertiesEntity(n, qr[3], nodeProperties)
-            self.manageLabelsNode(labelsNodeTlp, n, qr[3])
             tmpIDNode[n] = qr[1]
             # keep the reference for edges creation
             indexNodes[qr[1]] = n
-
-        # Get the edges #  RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength
-        print("Read Edges")
-        result = self.neo4j_graph.run(req)
-        for qr in result:
+            entProperties["viewLabel"][n] = str(qr[3])
+            entProperties["viewColor"][n] = self.colors['tag_id']
+            entProperties["tag_id"][n] = str(qr[1])
             if qr[0] in indexNodes and qr[1] in indexNodes:
                 e = self.tulip_graph.addEdge(indexNodes[qr[0]], indexNodes[qr[1]])
-                edgeProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
-                edgeProperties["viewLabel"][e] = "REFERS_TO ("+str(qr[4])+")"
+                entProperties["viewLabel"][e] = "REFERS_TO ("+str(qr[4])+")"
                 labelEdgeTlp[e] = "REFERS_TO ("+str(qr[4])+")"
-                edgeProperties["type"] = self.tulip_graph.getStringProperty("type")
-                edgeProperties["type"][e] = "curvedArrow"
-                edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
-                edgeProperties["viewColor"][e] = self.colors['edges']
-
-
-#        for n1 in indexNodes:
-#            for n2 in indexNodes:
-#                req = "MATCH (t1: tag {tag_id: %d})<-[:REFERS_TO]-(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2: annotation)-[:REFERS_TO]->(t2: tag {tag_id: %d}) WHERE a1 <> a2 RETURN count(e) as strength" % (n1, n2)
-#                result = self.neo4j_graph.run(req)
-#                for qr in result:
-#                    if qr[0] > 0:
-#                        e = self.tulip_graph.addEdge(indexNodes[n1], indexNodes[n2])
-#                        edgeProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
-#                        edgeProperties["viewLabel"][e] = "REFERS_TO ("+str(qr[0])+")"
-#                        labelEdgeTlp[e] = "REFERS_TO ("+str(qr[0])+")"
-#                        edgeProperties["type"] = self.tulip_graph.getStringProperty("type")
-#                        edgeProperties["type"][e] = "curvedArrow"
-#                        edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
-#                        edgeProperties["viewColor"][e] = self.colors['edges']
-
+                entProperties["type"][e] = "curvedArrow"
+                entProperties["viewColor"][e] = self.colors['edges']
+                entProperties["tag_1"][e] = str(qr[0])
+                entProperties["tag_2"][e] = str(qr[1])
+                entProperties["label_1"][e] = str(qr[2])
+                entProperties["label_2"][e] = str(qr[3])
 
         print("Export")
         tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))

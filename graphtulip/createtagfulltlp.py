@@ -9,7 +9,7 @@ config.read("config.ini")
 
 # todo create a unique Createtlp to avoid code duplication
 class CreateTagFullTlp(object):
-    def __init__(self, value, start, end):
+    def __init__(self, value, start, end, force_fresh):
         super(CreateTagFullTlp, self).__init__()
         print('Initializing')
 
@@ -22,6 +22,7 @@ class CreateTagFullTlp(object):
         self.filter_occ = value
         self.date_start = start
         self.date_end = end
+        self.force_fresh = force_fresh
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -78,7 +79,7 @@ class CreateTagFullTlp(object):
 
     def create(self, private_gid):
         # Entities properties
-        #tmpIDNode = self.tulip_graph.getStringProperty("tmpIDNode")
+        tmpIDNode = self.tulip_graph.getStringProperty("tmpIDNode")
         labelsNodeTlp = self.tulip_graph.getStringVectorProperty("labelsNodeTlp")
         labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
         entityType = self.tulip_graph.getStringProperty("entityType")
@@ -88,7 +89,7 @@ class CreateTagFullTlp(object):
         indexPosts = {}
         indexComments = {}
 
-        if not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT")):
+        if (not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))) or self.force_fresh == 1:
             # Prepare tags and posts request
             req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: post) "
             req+= "WHERE e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
@@ -101,14 +102,14 @@ class CreateTagFullTlp(object):
                 if not qr[0] in indexTags:
                     n = self.tulip_graph.addNode()
                     indexTags[qr[0]] = n
-                    #tmpIDNode[n] = qr[0]
+                    tmpIDNode[n] = str(qr[0])
                     self.managePropertiesEntity(n, qr[2], nodeProperties)
                     self.manageLabelsNode(labelsNodeTlp, n, qr[2])
                     entityType[n] = "tag"
                 if not qr[1] in indexPosts:
                     n = self.tulip_graph.addNode()
                     indexPosts[qr[1]] = n
-                    #tmpIDNode[n] = qr[1]
+                    tmpIDNode[n] = str(qr[1])
                     self.managePropertiesEntity(n, qr[3], nodeProperties)
                     self.manageLabelsNode(labelsNodeTlp, n, qr[3])
                     entityType[n] = "post"
@@ -127,14 +128,14 @@ class CreateTagFullTlp(object):
                 if not qr[0] in indexTags:
                     n = self.tulip_graph.addNode()
                     indexTags[qr[0]] = n
-                    #tmpIDNode[n] = qr[0]
+                    tmpIDNode[n] = str(qr[0])
                     self.managePropertiesEntity(n, qr[2], nodeProperties)
                     self.manageLabelsNode(labelsNodeTlp, n, qr[2])
                     entityType[n] = "tag"
                 if not qr[1] in indexComments:
                     n = self.tulip_graph.addNode()
                     indexComments[qr[1]] = n
-                    #tmpIDNode[n] = qr[1]
+                    tmpIDNode[n] = str(qr[1])
                     self.managePropertiesEntity(n, qr[3], nodeProperties)
                     self.manageLabelsNode(labelsNodeTlp, n, qr[3])
                     entityType[n] = "comment"
@@ -151,6 +152,8 @@ class CreateTagFullTlp(object):
             edgeProperties["type"] = self.tulip_graph.getStringProperty("type")
             edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
             edgeProperties["viewSize"] = self.tulip_graph.getSizeProperty("viewSize")
+            edgeProperties['tag_1'] = self.tulip_graph.getStringProperty("tag_1")
+            edgeProperties['tag_2'] = self.tulip_graph.getStringProperty("tag_2")
             for t1 in indexTags:
                 edgeProperties["TagTagSelection"][indexTags[t1]] = True
                 for p in self.tulip_graph.getOutNodes(indexTags[t1]):
@@ -178,6 +181,8 @@ class CreateTagFullTlp(object):
                                     labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
                                     edgeProperties["type"][e] = "curvedArrow"
                                     edgeProperties["viewColor"][e] = self.colors['edges']
+                                    edgeProperties['tag_1'][e] = tmpIDNode[indexTags[t1]]
+                                    edgeProperties['tag_2'][e] = tmpIDNode[t2]
             sg = self.tulip_graph.addSubGraph(edgeProperties["TagTagSelection"])
             tlp.saveGraph(sg, "%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))
         else:
