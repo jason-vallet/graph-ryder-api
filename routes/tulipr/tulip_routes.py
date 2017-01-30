@@ -14,8 +14,8 @@ def add_tulip_routes(api):
     for f in files:
         os.remove(f)
     # Generate all graphs
-    generator = GenerateGraphs(**{'gid_stack': gid_stack })
-    generator.get(False)
+    #generator = GenerateGraphs(**{'gid_stack': gid_stack })
+    #generator.get(False)
 
     # Generate
     api.add_resource(GenerateFullGraph, '/generateFullGraph', resource_class_kwargs={'gid_stack': gid_stack })
