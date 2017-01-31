@@ -27,6 +27,19 @@ class Info(Resource):
         return makeResponse(response, 200)
 
 
+class Status(Resource):
+    def get(self):
+        elementType = ['user', 'post', 'comment', 'annotation', 'tag']
+        labels = ['Users', 'Posts', 'Comments', 'Annotations', 'Tags']
+        data = []
+        for t in elementType:
+            req = "MATCH (e: "+t+") RETURN count(e) as nb"
+            result = neo4j.query_neo4j(req)
+            for record in result:
+                data.append(record['nb'])
+        return makeResponse({'labels': labels, 'data': [data]}, 200)
+
+
 class Update(Resource):
     def get(self):
         importer = ImportFromJson(False)
