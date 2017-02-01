@@ -11,6 +11,8 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 
 def cleanString(s):
+    s=s.replace("\n", "")
+    s=s.replace("\r", "")
     return s.replace("\\","")
 
 class ImportFromJson(object):
@@ -166,7 +168,6 @@ class ImportFromJson(object):
                     user_node['user_id'] = int(post_fields['user_id'])
                     if post_fields['user_name']:
                         user_node['label'] = cleanString(post_fields['user_name'])
-                    if post_fields['user_name']:
                         user_node['name'] = cleanString(post_fields['user_name'])
                     self.neo4j_graph.merge(user_node)
 
@@ -225,7 +226,20 @@ class ImportFromJson(object):
 
             # ParentAuthor
             if comment_fields['user_id']:
-                result = query_neo4j("MATCH (u:user { user_id : %s }) RETURN u" % comment_fields['user_id'])
+                try:
+                    req = "MATCH (u:user { user_id : %s }) RETURN u" % comment_fields['user_id']
+                    query_neo4j(req).single()
+                except ResultError:
+                    if ImportFromJson.verbose:
+                        print("WARNING : comment comment_id : %d has no author user_id : %s. Creating one." % (comment_node['comment_id'], comment_fields['user_id']))
+
+                    user_node = Node('user')
+                    user_node['user_id'] = int(comment_fields['user_id'])
+                    if comment_fields['user_name']:
+                        user_node['label'] = cleanString(comment_fields['user_name'])
+                        user_node['name'] = cleanString(comment_fields['user_name'])
+                    self.neo4j_graph.merge(user_node)
+
                 try:
                     req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
                     req += "MATCH (u:user { user_id : %s }) " % comment_fields['user_id']
