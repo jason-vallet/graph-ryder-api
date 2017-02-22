@@ -1,7 +1,7 @@
 import glob
 from routes.tulipr.tulip_create import *
 from routes.tulipr.tulip_layout import GetLayoutAlgorithm, DrawGraph
-from routes.tulipr.tulip_compute import ComputeDOI
+from routes.tulipr.tulip_compute import ComputeDOI, ComputeNeighbours
 
 
 
@@ -38,4 +38,7 @@ def add_tulip_routes(api):
 
     # Compute
     api.add_resource(ComputeDOI, '/doi/<string:graph>/<string:type>/<int:id>', resource_class_kwargs={'gid_stack': gid_stack })
+    api.add_resource(ComputeNeighbours, '/neighbours/<string:type>/<int:id>', resource_class_kwargs={'gid_stack': gid_stack })
+
+    api.add_resource(TestTlpFile, '/test/tmp.tlp')
 

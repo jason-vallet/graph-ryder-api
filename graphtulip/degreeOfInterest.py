@@ -31,9 +31,9 @@ class DOIContext(object):
     # todo: search with neo4j the focus
     def get_node(self, node_type, node_id):
         node = None
-        propertie = self.original_graph.getProperty(node_type)
+        prop = self.original_graph.getProperty(node_type)
         for n in self.original_graph.getNodes():
-            if propertie[n] == str(node_id):
+            if prop[n] == str(node_id):
                 node = n
                 break
         return node
@@ -69,7 +69,7 @@ class DOIContext(object):
         return context_subgraph
 
 
-def create(start_graph, private_gid, node_type, node_id, max_size=20):
+def createDOI(start_graph, private_gid, node_type, node_id, max_size=20):
     graph = tlp.loadGraph("%s%s.tlp" % (config['exporter']['tlp_path'], start_graph))
     doi = DOIContext(graph)
 

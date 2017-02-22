@@ -60,6 +60,31 @@ class GetCommentHydrate(Resource):
                     annotations_id.append(record['annotation_id'])
             except KeyError:
                 pass
+
+        # response comments
+        req = 'MATCH (find:comment {comment_id: %d}) ' % comment_id
+        req += 'OPTIONAL MATCH (find)<-[:COMMENTS]-(c2:comment) '
+        req += 'OPTIONAL MATCH (c2:comment)<-[:AUTHORSHIP]-(author:user) '
+        req += 'RETURN find.comment_id AS initial_comment_id, c2.comment_id AS response_id, c2.label AS response_label, c2.timestamp AS response_timestamp, author.user_id AS author_id, author.label AS author_label ORDER BY response_timestamp DESC'
+        result = neo4j.query_neo4j(req)
+        resp_comments = []
+        for record in result:
+            resp_comment = {}
+            try:
+                if record['response_id']:
+                    resp_comment['comment_id'] = record['response_id']
+                    if record['response_label']:
+                        resp_comment['comment_label'] = record['response_label']
+                    if record['response_timestamp']:
+                        resp_comment['comment_timestamp'] = record['response_timestamp']
+                    if record['author_id']:
+                        resp_comment['user_id'] = record['author_id']
+                    if record['author_label']:
+                        resp_comment['user_label'] = record['author_label']
+                    resp_comments.append(resp_comment)
+            except KeyError:
+                pass
+
         try:
             comment
         except NameError:
@@ -67,6 +92,7 @@ class GetCommentHydrate(Resource):
         comment['author'] = author
         comment['post'] = post
         comment['annotations'] = annotations
+        comment['comments'] = resp_comments
         return makeResponse(comment, 200)
 
 
@@ -78,6 +104,16 @@ class GetComments(Resource):
         comments = []
         for record in result:
             comments.append({'comment_id': record['comment_id'], "title": record['title']})
+        return makeResponse(comments, 200)
+
+
+class GetCommentsLatest(Resource):
+    def get(self):
+        req = "MATCH (c: comment) <-[:AUTHORSHIP]- (u: user) RETURN c.comment_id AS comment_id, c.label AS comment_label, u.user_id AS user_id, u.label AS user_label, c.timestamp AS timestamp ORDER BY timestamp DESC LIMIT 5"
+        result = neo4j.query_neo4j(req)
+        comments = []
+        for record in result:
+            comments.append({'comment_id': record['comment_id'], "comment_label": record['comment_label'], "user_id": record['user_id'], "user_label": record['user_label'], "timestamp": record['timestamp']})
         return makeResponse(comments, 200)
 
 

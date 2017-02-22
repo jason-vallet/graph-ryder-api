@@ -6,6 +6,7 @@ def add_post_routes(api):
     # Getters
     # Multiple
     api.add_resource(GetPosts, '/posts')
+    api.add_resource(GetPostsLatest, '/posts/latest')
     api.add_resource(GetPostsByType, '/posts/type/<string:post_type>')
     api.add_resource(GetPostsByAuthor, '/posts/author/<int:author_id>')
     # Single

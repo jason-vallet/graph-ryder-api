@@ -32,8 +32,10 @@ class CountUsersByTimestamp(Resource):
         }]
     """
     def get(self):
-        req = "MATCH (n:user) "
-        req += "RETURN n.timestamp AS timestamp ORDER BY timestamp ASC"
+#        req = "MATCH (n:user) "
+#        req += "RETURN n.timestamp AS timestamp ORDER BY timestamp ASC"
+        req = "MATCH (n: user) -[:AUTHORSHIP]-> (e) "
+        req += "RETURN n.user_id, min(e.timestamp) AS timestamp ORDER BY timestamp ASC"
         result = neo4j.query_neo4j(req)
         users = []
         count = 1

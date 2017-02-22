@@ -45,6 +45,7 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
         result = neo4j.query_neo4j(req)
         annotations = []
         annotations_id = []
+        tags_id = []
         for record in result:
             annotation = {} 
             try:
@@ -59,6 +60,30 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
                         annotation['tag_label'] = record['tag_label']
                     annotations.append(annotation)
                     annotations_id.append(record['annotation_id'])
+                    if record['tag_id'] not in tags_id:
+                        tags_id.append(record['tag_id'])
+            except KeyError:
+                pass
+
+        # innovations
+        req = "MATCH (p: post {post_id: %d}) <-[:COMMENTS]- (c: comment) " %post_id
+        req += "MATCH (c) <-[:ANNOTATES]-(a)-[:REFERS_TO]->(t: tag) "
+        req += "RETURN t.tag_id as tag_id, t.label as tag_label, c.comment_id as comment_id, c.label as comment_label ORDER BY c.timestamp DESC"
+        result = neo4j.query_neo4j(req)
+        innovations = []
+        for record in result:
+            innovation = {} 
+            try:
+                if record['tag_id'] and record['tag_id'] not in tags_id:
+                    if record['tag_id']:
+                        innovation['tag_id'] = record['tag_id']
+                    if record['tag_label']:
+                        innovation['tag_label'] = record['tag_label']
+                    if record['comment_id']:
+                        innovation['comment_id'] = record['comment_id']
+                    if record['comment_label']:
+                        innovation['comment_label'] = record['comment_label']
+                    innovations.append(innovation)
             except KeyError:
                 pass
 
@@ -69,6 +94,7 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
         post['comments'] = comments
         post['author'] = author
         post['annotations'] = annotations
+        post['innovations'] = innovations
         return makeResponse(post, 200)
 
 
@@ -80,6 +106,15 @@ class GetPosts(Resource):
         posts = []
         for record in result:
             posts.append({'post_id': record['post_id'], "title": record['title']})
+        return makeResponse(posts, 200)
+
+class GetPostsLatest(Resource):
+    def get(self):
+        req = "MATCH (p:post) <-[:AUTHORSHIP]- (u: user) RETURN p.post_id AS post_id,p.label AS post_label, u.user_id AS user_id, u.label AS user_label, p.timestamp AS timestamp ORDER BY timestamp DESC LIMIT 5"
+        result = neo4j.query_neo4j(req)
+        posts = []
+        for record in result:
+            posts.append({'post_id': record['post_id'], "post_label": record['post_label'], "user_id": record['user_id'], "user_label": record['user_label'], "timestamp": record['timestamp']})
         return makeResponse(posts, 200)
 
 

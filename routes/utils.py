@@ -58,3 +58,11 @@ def makeResponse(result, code=200, file=False):
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     response.headers.add('Content-Type', 'application/json')
     return response
+
+def sendFile(result, code=200):
+    response = make_response(result, code)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Content-Type', 'application/json')
+    return response

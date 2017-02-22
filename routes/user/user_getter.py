@@ -62,7 +62,7 @@ class GetUserHydrate(Resource):
         req = "MATCH (find:user {user_id: %d})" % user_id
         req += " MATCH (find)-[:AUTHORSHIP]->(c:comment)"
         req += " OPTIONAL MATCH (c)-[:COMMENTS]->(p:post)"
-        req += ' RETURN c.comment_id AS comment_id, c.label AS comment_label, c.timestamp AS timestamp, p.post_id AS comment_parent_post_id ORDER BY c.timestamp DESC'
+        req += ' RETURN c.comment_id AS comment_id, c.label AS comment_label, c.timestamp AS timestamp, p.post_id AS comment_parent_post_id, p.label AS comment_parent_post_label ORDER BY c.timestamp DESC'
         result = neo4j.query_neo4j(req)
         comments_id = []
         comments = []
@@ -75,6 +75,7 @@ class GetUserHydrate(Resource):
                     comment['label'] = record['comment_label']
                     comment['timestamp'] = record['timestamp']
                     comment['comment_parent_post_id'] = record['comment_parent_post_id']
+                    comment['comment_parent_post_label'] = record['comment_parent_post_label']
                     comments.append(comment)
                     comments_id.append(comment['comment_id'])
             except KeyError:

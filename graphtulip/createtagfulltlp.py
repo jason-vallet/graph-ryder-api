@@ -2,6 +2,7 @@ from tulip import *
 from py2neo import *
 import configparser
 import os
+from graphtulip.createPostCommentTagTlp import CreatePostCommentTagTlp
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -79,71 +80,19 @@ class CreateTagFullTlp(object):
 
     def create(self, private_gid):
         # Entities properties
-        tmpIDNode = self.tulip_graph.getStringProperty("tmpIDNode")
-        labelsNodeTlp = self.tulip_graph.getStringVectorProperty("labelsNodeTlp")
-        labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
-        entityType = self.tulip_graph.getStringProperty("entityType")
         nodeProperties = {}
         edgeProperties = {}
-        indexTags = {}
-        indexPosts = {}
-        indexComments = {}
 
         if (not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))) or self.force_fresh == 1:
-            # Prepare tags and posts request
-            req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: post) "
-            req+= "WHERE e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-            req+= "RETURN t.tag_id, e.post_id, t, e, count(t) as strength"
-            result = self.neo4j_graph.run(req)
-
-            # Get the posts
-            print("Read Posts")
-            for qr in result:
-                if not qr[0] in indexTags:
-                    n = self.tulip_graph.addNode()
-                    indexTags[qr[0]] = n
-                    tmpIDNode[n] = str(qr[0])
-                    self.managePropertiesEntity(n, qr[2], nodeProperties)
-                    self.manageLabelsNode(labelsNodeTlp, n, qr[2])
-                    entityType[n] = "tag"
-                if not qr[1] in indexPosts:
-                    n = self.tulip_graph.addNode()
-                    indexPosts[qr[1]] = n
-                    tmpIDNode[n] = str(qr[1])
-                    self.managePropertiesEntity(n, qr[3], nodeProperties)
-                    self.manageLabelsNode(labelsNodeTlp, n, qr[3])
-                    entityType[n] = "post"
-
-                e = self.tulip_graph.addEdge(indexTags[qr[0]], indexPosts[qr[1]])
-
-            # Prepare tags and comments request
-            req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: comment) "
-            req+= "WHERE e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-            req+= "RETURN t.tag_id, e.comment_id, t, e, count(t) as strength"
-            result = self.neo4j_graph.run(req)
-
-            # Get the comments
-            print("Read Comments")
-            for qr in result:
-                if not qr[0] in indexTags:
-                    n = self.tulip_graph.addNode()
-                    indexTags[qr[0]] = n
-                    tmpIDNode[n] = str(qr[0])
-                    self.managePropertiesEntity(n, qr[2], nodeProperties)
-                    self.manageLabelsNode(labelsNodeTlp, n, qr[2])
-                    entityType[n] = "tag"
-                if not qr[1] in indexComments:
-                    n = self.tulip_graph.addNode()
-                    indexComments[qr[1]] = n
-                    tmpIDNode[n] = str(qr[1])
-                    self.managePropertiesEntity(n, qr[3], nodeProperties)
-                    self.manageLabelsNode(labelsNodeTlp, n, qr[3])
-                    entityType[n] = "comment"
-
-                e = self.tulip_graph.addEdge(indexTags[qr[0]], indexComments[qr[1]])
-            tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], "PostCommentTag"))
+            creatorPCT = CreatePostCommentTagTlp(self.date_start, self.date_end, self.force_fresh)
+            creatorPCT.create()
+            self.tulip_graph = tlp.loadGraph("%s%s.tlp" % (config['exporter']['tlp_path'], "PostCommentTag"))
 
             print("Compute Tag-Tag graph")
+            tmpIDNode = self.tulip_graph.getStringProperty("tmpIDNode")
+            labelsNodeTlp = self.tulip_graph.getStringVectorProperty("labelsNodeTlp")
+            labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
+            entityType = self.tulip_graph.getStringProperty("entityType")
             edgeProperties["occ"] = self.tulip_graph.getIntegerProperty("occ")
             edgeProperties["TagTagSelection"] = self.tulip_graph.getBooleanProperty("TagTagSelection")
             edgeProperties["TagTagSelection"].setAllNodeValue(False)
@@ -154,35 +103,36 @@ class CreateTagFullTlp(object):
             edgeProperties["viewSize"] = self.tulip_graph.getSizeProperty("viewSize")
             edgeProperties['tag_1'] = self.tulip_graph.getStringProperty("tag_1")
             edgeProperties['tag_2'] = self.tulip_graph.getStringProperty("tag_2")
-            for t1 in indexTags:
-                edgeProperties["TagTagSelection"][indexTags[t1]] = True
-                for p in self.tulip_graph.getOutNodes(indexTags[t1]):
-                    if entityType[p] == "post" or entityType[p] == "comment":
-                        for t2 in self.tulip_graph.getInNodes(p):
-                            if indexTags[t1] != t2:
-                                e=self.tulip_graph.existEdge(indexTags[t1], t2, False)
-                                if e.isValid():
-                                    edgeProperties["occ"][e] += 1
-                                    edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                    labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                    e_val = edgeProperties['occ'][e]
-                                    if e_val > edgeProperties["occ"][indexTags[t1]]:
-                                        edgeProperties["occ"][indexTags[t1]] = e_val
-                                        edgeProperties["viewSize"][indexTags[t1]] = tlp.Size(e_val, e_val, e_val)
-                                    if e_val > edgeProperties["occ"][t2]:
-                                        edgeProperties["occ"][t2] = e_val
-                                        edgeProperties["viewSize"][t2] = tlp.Size(e_val, e_val, e_val)
-                                else:
-                                    e = self.tulip_graph.addEdge(indexTags[t1], t2)
-                                    edgeProperties["occ"][e] = 1
-                                    edgeProperties["TagTagSelection"][t2] = True
-                                    edgeProperties["TagTagSelection"][e] = True
-                                    edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                    labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                    edgeProperties["type"][e] = "curvedArrow"
-                                    edgeProperties["viewColor"][e] = self.colors['edges']
-                                    edgeProperties['tag_1'][e] = tmpIDNode[indexTags[t1]]
-                                    edgeProperties['tag_2'][e] = tmpIDNode[t2]
+            for t1 in self.tulip_graph.getNodes():
+                if entityType[t1] == "tag":
+                    edgeProperties["TagTagSelection"][t1] = True
+                    for p in self.tulip_graph.getOutNodes(t1):
+                        if entityType[p] == "post" or entityType[p] == "comment":
+                            for t2 in self.tulip_graph.getInNodes(p):
+                                if t1 != t2:
+                                    e=self.tulip_graph.existEdge(t1, t2, False)
+                                    if e.isValid():
+                                        edgeProperties["occ"][e] += 1
+                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        e_val = edgeProperties['occ'][e]
+                                        if e_val > edgeProperties["occ"][t1]:
+                                            edgeProperties["occ"][t1] = e_val
+                                            edgeProperties["viewSize"][t1] = tlp.Size(e_val, e_val, e_val)
+                                        if e_val > edgeProperties["occ"][t2]:
+                                            edgeProperties["occ"][t2] = e_val
+                                            edgeProperties["viewSize"][t2] = tlp.Size(e_val, e_val, e_val)
+                                    else:
+                                        e = self.tulip_graph.addEdge(t1, t2)
+                                        edgeProperties["occ"][e] = 1
+                                        edgeProperties["TagTagSelection"][t2] = True
+                                        edgeProperties["TagTagSelection"][e] = True
+                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        edgeProperties["type"][e] = "curvedArrow"
+                                        edgeProperties["viewColor"][e] = self.colors['edges']
+                                        edgeProperties['tag_1'][e] = tmpIDNode[t1]
+                                        edgeProperties['tag_2'][e] = tmpIDNode[t2]
             sg = self.tulip_graph.addSubGraph(edgeProperties["TagTagSelection"])
             tlp.saveGraph(sg, "%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))
         else:

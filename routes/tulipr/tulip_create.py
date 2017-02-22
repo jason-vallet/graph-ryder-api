@@ -3,7 +3,7 @@ import configparser
 import os
 import time
 from flask_restful import Resource, reqparse
-from routes.utils import makeResponse
+from routes.utils import makeResponse, sendFile
 from graphtulip.createtlp import CreateTlp
 from graphtulip.createfulltlp import CreateFullTlp
 from graphtulip.createusertlp import CreateUserTlp
@@ -157,7 +157,6 @@ class CreateGraph(Resource):
 
     def get(self, field, value):
         public_gid = int(time.time()) + uuid.uuid4().urn[19:]
-        print(public_gid)
         private_gid = uuid.uuid4().urn[9:]
         creator = CreateTlp()
         params = [(field, value)]
@@ -225,3 +224,9 @@ def checkTlpFiles(gid_stack):
                 min = int(key[0:10])
         priv = gid_stack.pop(min_key)
         os.remove('%s%s.tlp' % (config['exporter']['tlp_path'], priv))
+
+class TestTlpFile(Resource):
+    def get(self):
+        f=open("tmp.tlp", 'r', encoding='utf-8')
+        result = f.read()
+        return sendFile(result,200)
