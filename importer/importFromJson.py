@@ -11,9 +11,10 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 
 def cleanString(s):
-    s=s.replace("\n", "")
+#    s=s.replace("\n", "<br>")
     s=s.replace("\r", "")
-    return s.replace("\\","")
+#    return s.replace("\\","")
+    return s
 
 class ImportFromJson(object):
     verbose = False

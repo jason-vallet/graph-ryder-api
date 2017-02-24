@@ -236,7 +236,7 @@ class CreateNeighbourhood(object):
         # visual attributes
         colorProp = self.tulip_graph.getColorProperty("viewColor")
         sizeProp = self.tulip_graph.getSizeProperty("viewSize")
-        max_scale = self.weight.getNodeMax()
+        max_scale = max(self.weight.getNodeMax(), 1)
         color_max = tlp.Color(200, 10, 10)
         color_min = tlp.Color(200, 180, 180)
         color_delta = tlp.Color(abs(color_max[0]-color_min[0])/max_scale, abs(color_max[1]-color_min[1])/max_scale, abs(color_max[2]-color_min[2])/max_scale)
