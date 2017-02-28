@@ -33,7 +33,7 @@ class Status(Resource):
         labels = ['Users', 'Posts', 'Comments', 'Annotations', 'Tags']
         data = []
         for t in elementType:
-            req = "MATCH (e: "+t+") RETURN count(e) as nb"
+            req = "MATCH (e: "+t+")--() RETURN count(distinct e) as nb"
             result = neo4j.query_neo4j(req)
             for record in result:
                 data.append(record['nb'])
