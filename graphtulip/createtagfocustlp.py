@@ -91,7 +91,7 @@ class CreateTagFocusTlp(object):
         indexTags = {}
         indexPosts = {}
         indexComments = {}
-        max_occ = 0
+        max_occ = 1
 
         # Prepare tags and posts request
         req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: post) "

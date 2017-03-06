@@ -84,7 +84,7 @@ class CreateTagFullTlp(object):
         # Entities properties
         nodeProperties = {}
         edgeProperties = {}
-        max_occ = 0
+        max_occ = 1
 
         if (not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))) or self.force_fresh == 1:
             creatorPCT = CreatePostCommentTagTlp(self.date_start, self.date_end, self.force_fresh)

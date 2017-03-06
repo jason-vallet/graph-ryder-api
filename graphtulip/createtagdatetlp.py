@@ -89,7 +89,7 @@ class CreateTagDateTlp(object):
         entProperties["tag_id"] = self.tulip_graph.getStringProperty("tag_id")
         entProperties["occ"] = self.tulip_graph.getIntegerProperty("occ")
         indexNodes = {}
-        max_occ = 0
+        max_occ = 1
 
         req = "MATCH (t1: tag {tag_id: %d}) RETURN t1.tag_id, t1" % self.tag_id_src
         result = self.neo4j_graph.run(req)
