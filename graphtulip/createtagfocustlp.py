@@ -21,6 +21,8 @@ class CreateTagFocusTlp(object):
         self.tag_id_src = value
         self.date_start = start
         self.date_end = end
+        # for normalisation
+        self.nb_step = 100
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -89,6 +91,7 @@ class CreateTagFocusTlp(object):
         indexTags = {}
         indexPosts = {}
         indexComments = {}
+        max_occ = 0
 
         # Prepare tags and posts request
         req = "MATCH (t:tag)<-[:REFERS_TO]-(a:annotation)-[:ANNOTATES]->(e: post) "
@@ -167,8 +170,9 @@ class CreateTagFocusTlp(object):
                             if e.isValid():
                                 edgeProperties["occ"][e] += 1
                                 edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
                                 e_val = edgeProperties['occ'][e]
+                                max_occ = max(max_occ, e_val)
                                 if e_val > edgeProperties["occ"][indexTags[t1]]:
                                     edgeProperties["occ"][indexTags[t1]] = e_val
                                     edgeProperties["viewSize"][indexTags[t1]] = tlp.Size(e_val, e_val, e_val)
@@ -181,7 +185,7 @@ class CreateTagFocusTlp(object):
                                 edgeProperties["TagTagSelection"][t2] = True
                                 edgeProperties["TagTagSelection"][e] = True
                                 edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
                                 edgeProperties["type"][e] = "curvedArrow"
                                 edgeProperties["viewColor"][e] = self.colors['edges']
                                 edgeProperties["tag_1"][e] = str(nodeProperties['tag_id'][indexTags[t1]])
@@ -196,14 +200,20 @@ class CreateTagFocusTlp(object):
         edgeProperties["TagTagSelection"].setAllNodeValue(False)
         edgeProperties["TagTagSelection"].setAllEdgeValue(False)
         edgeProperties["TagTagSelection"][t1] = True
+        edgeProperties["occ"][t1] = -1
         for t2 in sg.getInOutNodes(t1):
             edgeProperties["TagTagSelection"][t2] = True
             e = sg.existEdge(t1, t2, False)
             edgeProperties["TagTagSelection"][e] = True
+            tmp_val = (float(edgeProperties["occ"][e])/max_occ)*(self.nb_step-1)+1
+            edgeProperties["occ"][e] = tmp_val
+            edgeProperties["occ"][t2] = tmp_val
             for t3 in sg.getInOutNodes(t2):
                 if edgeProperties["TagTagSelection"][t3] == True:
                     e = sg.existEdge(t2, t3, False)
                     edgeProperties["TagTagSelection"][e] = True
+                    tmp_val = (float(edgeProperties["occ"][e])/max_occ)*(self.nb_step-1)+1
+                    edgeProperties["occ"][e] = tmp_val
         ssg = sg.addSubGraph(edgeProperties["TagTagSelection"])
 
         print("Export")

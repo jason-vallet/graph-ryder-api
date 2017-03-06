@@ -21,6 +21,8 @@ class CreateTagDateTlp(object):
         self.tag_id_src = value
         self.date_start = start
         self.date_end = end
+        # for normalisation
+        self.nb_step = 100
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -83,27 +85,31 @@ class CreateTagDateTlp(object):
         labelEdgeTlp = self.tulip_graph.getStringProperty("labelEdgeTlp")
         entProperties = {}
         entProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
+        entProperties["viewSize"] = self.tulip_graph.getSizeProperty("viewSize")
         entProperties["tag_id"] = self.tulip_graph.getStringProperty("tag_id")
+        entProperties["occ"] = self.tulip_graph.getIntegerProperty("occ")
         indexNodes = {}
+        max_occ = 0
 
         req = "MATCH (t1: tag {tag_id: %d}) RETURN t1.tag_id, t1" % self.tag_id_src
         result = self.neo4j_graph.run(req)
 
         for qr in result:
-            n = self.tulip_graph.addNode()
-            self.managePropertiesEntity(n, qr[1], entProperties)
-            self.manageLabelsNode(labelsNodeTlp, n, qr[1])
-            tmpIDNode[n] = qr[0]
+            focus_node = self.tulip_graph.addNode()
+            self.managePropertiesEntity(focus_node, qr[1], entProperties)
+            self.manageLabelsNode(labelsNodeTlp, focus_node, qr[1])
+            tmpIDNode[focus_node] = qr[0]
             # keep the reference for edges creation
-            indexNodes[qr[0]] = n
+            indexNodes[qr[0]] = focus_node
+            entProperties["occ"][focus_node] = 0
             break
 
         # Prepare node and edge request
         req = "MATCH (t1:tag {tag_id: %d})<-[:REFERS_TO]-(a1:annotation)-[:ANNOTATES]->(e) " % self.tag_id_src
         req+= "MATCH (t2:tag)<-[:REFERS_TO]-(a2:annotation)-[:ANNOTATES]->(e) "
-        req+= "WHERE a1<>a2 AND t1 <> t2 AND e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
-        req+= "RETURN t1.tag_id, t2.tag_id, t1.label, t2.label, count(t1) as strength"
-        #req = "MATCH (t1: tag {tag_id: %d})--(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2: annotation)--(t2: tag) WHERE t1 <> t2 RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength" % self.tag_id_src
+        req+= "WHERE t1<>t2 AND a1<>a2 AND t1 <> t2 AND e.timestamp >= %d AND e.timestamp <= %d " % (self.date_start, self.date_end)
+        req+= "RETURN t1.tag_id, t2.tag_id, t1.label, t2.label, count(t1) as weight"
+        #req = "MATCH (t1: tag {tag_id: %d})--(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2: annotation)--(t2: tag) WHERE t1 <> t2 RETURN ID(t1), ID(t2), t1, t2, count(t1) as weight" % self.tag_id_src
         result = self.neo4j_graph.run(req)
 
         entProperties["viewLabel"] = self.tulip_graph.getStringProperty("viewLabel")
@@ -113,7 +119,7 @@ class CreateTagDateTlp(object):
         entProperties["label_1"] = self.tulip_graph.getStringProperty("label_1")
         entProperties["tag_2"] = self.tulip_graph.getStringProperty("tag_2")
         entProperties["label_2"] = self.tulip_graph.getStringProperty("label_2")
-        # Get the edges #  RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength
+        # Get the edges #  RETURN ID(t1), ID(t2), t1, t2, count(t1) as weight
         result = self.neo4j_graph.run(req)
         for qr in result:
             n = self.tulip_graph.addNode()
@@ -123,6 +129,7 @@ class CreateTagDateTlp(object):
             entProperties["viewLabel"][n] = str(qr[3])
             entProperties["viewColor"][n] = self.colors['tag_id']
             entProperties["tag_id"][n] = str(qr[1])
+            max_occ = max(qr[4], max_occ) 
             if qr[0] in indexNodes and qr[1] in indexNodes:
                 e = self.tulip_graph.addEdge(indexNodes[qr[0]], indexNodes[qr[1]])
                 entProperties["viewLabel"][e] = "REFERS_TO ("+str(qr[4])+")"
@@ -133,6 +140,18 @@ class CreateTagDateTlp(object):
                 entProperties["tag_2"][e] = str(qr[1])
                 entProperties["label_1"][e] = str(qr[2])
                 entProperties["label_2"][e] = str(qr[3])
+                entProperties["occ"][e] = qr[4]
+
+        for e in self.tulip_graph.getOutEdges(focus_node):
+            tmp_val = (float(entProperties["occ"][e])/max_occ)*(self.nb_step-1)+1
+            entProperties["occ"][e] = int(tmp_val)
+            n = self.tulip_graph.target(e)
+            entProperties["occ"][n] = int(tmp_val)
+            #entProperties["viewSize"][n] = tlp.Size(self.nb_step,self.nb_step,self.nb_step)
+            
+            
+        entProperties["occ"][focus_node] = -1
+#        entProperties["viewSize"][n] = tlp.Size(tmp_val, tmp_val, tmp_val)
 
         print("Export")
         tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))

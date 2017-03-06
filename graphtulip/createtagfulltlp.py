@@ -24,6 +24,8 @@ class CreateTagFullTlp(object):
         self.date_start = start
         self.date_end = end
         self.force_fresh = force_fresh
+        # for normalisation
+        self.nb_step = 100
 
     # -----------------------------------------------------------
     # the updateVisualization(centerViews = True) function can be called
@@ -82,6 +84,7 @@ class CreateTagFullTlp(object):
         # Entities properties
         nodeProperties = {}
         edgeProperties = {}
+        max_occ = 0
 
         if (not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))) or self.force_fresh == 1:
             creatorPCT = CreatePostCommentTagTlp(self.date_start, self.date_end, self.force_fresh)
@@ -113,9 +116,10 @@ class CreateTagFullTlp(object):
                                     e=self.tulip_graph.existEdge(t1, t2, False)
                                     if e.isValid():
                                         edgeProperties["occ"][e] += 1
-                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
+                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
                                         e_val = edgeProperties['occ'][e]
+                                        max_occ = max(max_occ, e_val)
                                         if e_val > edgeProperties["occ"][t1]:
                                             edgeProperties["occ"][t1] = e_val
                                             edgeProperties["viewSize"][t1] = tlp.Size(e_val, e_val, e_val)
@@ -127,8 +131,8 @@ class CreateTagFullTlp(object):
                                         edgeProperties["occ"][e] = 1
                                         edgeProperties["TagTagSelection"][t2] = True
                                         edgeProperties["TagTagSelection"][e] = True
-                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
-                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e])+")"
+                                        edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
+                                        labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
                                         edgeProperties["type"][e] = "curvedArrow"
                                         edgeProperties["viewColor"][e] = self.colors['edges']
                                         edgeProperties['tag_1'][e] = tmpIDNode[t1]
@@ -141,13 +145,18 @@ class CreateTagFullTlp(object):
         print("Filter occ")
         edgeProperties["occ"] = sg.getIntegerProperty("occ")
         for t in sg.getNodes():
-            edgeProperties["occ"][t] = edgeProperties["occ"][t]/2
-            for e in sg.getOutEdges(t):
-                edgeProperties["occ"][e] = edgeProperties["occ"][e]/2
-                if edgeProperties["occ"][e] < self.filter_occ:
-                    sg.delEdge(e)
-            if edgeProperties["occ"][t] < self.filter_occ:
+            if edgeProperties["occ"][t]/2 < self.filter_occ:
                 sg.delNode(t)
+                continue
+            tmp_val = (float(edgeProperties["occ"][t])/max_occ)*(self.nb_step-1)+1
+            edgeProperties["occ"][t] = int(tmp_val)
+            for e in sg.getOutEdges(t):
+                if edgeProperties["occ"][e]/2 < self.filter_occ:
+                    sg.delEdge(e)
+                    continue
+                tmp_val = (float(edgeProperties["occ"][e])/max_occ)*(self.nb_step-1)+1
+                edgeProperties["occ"][e] = int(tmp_val)
+
 
         print("Export")
         tlp.saveGraph(sg, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))
