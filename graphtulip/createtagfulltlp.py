@@ -84,7 +84,7 @@ class CreateTagFullTlp(object):
         # Entities properties
         nodeProperties = {}
         edgeProperties = {}
-        max_occ = int(1)
+        max_occ = 1
 
         if (not os.path.exists("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))) or self.force_fresh == 1:
             creatorPCT = CreatePostCommentTagTlp(self.date_start, self.date_end, self.force_fresh)
@@ -141,6 +141,8 @@ class CreateTagFullTlp(object):
             tlp.saveGraph(sg, "%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))
         else:
             sg = tlp.loadGraph("%s%s.tlp" % (config['exporter']['tlp_path'], "TTT"))
+            edgeProperties["occ"] = sg.getIntegerProperty("occ")
+            max_occ = edgeProperties["occ"].getNodeMax()
 
         print("Filter occ")
         edgeProperties["occ"] = sg.getIntegerProperty("occ")
