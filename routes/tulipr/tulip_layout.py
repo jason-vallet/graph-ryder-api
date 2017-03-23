@@ -28,5 +28,6 @@ class DrawGraph(Resource):
         tulip_graph = tlp.loadGraph("%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))
         tulip_graph.applyLayoutAlgorithm(layout)
         path = tempfile.mkstemp()
-        tlp.exportGraph("SIGMA JSON Export", tulip_graph, path[1])
+        ds = tlp.getDefaultPluginParameters("SIGMA JSON Export", tulip_graph)
+        tlp.exportGraph("SIGMA JSON Export", tulip_graph, path[1], ds)
         return makeResponse(path[1], 200, True)
