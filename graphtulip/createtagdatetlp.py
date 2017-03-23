@@ -134,7 +134,7 @@ class CreateTagDateTlp(object):
                 e = self.tulip_graph.addEdge(indexNodes[qr[0]], indexNodes[qr[1]])
                 entProperties["viewLabel"][e] = "REFERS_TO ("+str(qr[4])+")"
                 labelEdgeTlp[e] = "REFERS_TO ("+str(qr[4])+")"
-                entProperties["type"][e] = "curvedArrow"
+                entProperties["type"][e] = "curve"
                 entProperties["viewColor"][e] = self.colors['edges']
                 entProperties["tag_1"][e] = str(qr[0])
                 entProperties["tag_2"][e] = str(qr[1])

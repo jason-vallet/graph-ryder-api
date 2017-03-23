@@ -186,7 +186,7 @@ class CreateTagFocusTlp(object):
                                 edgeProperties["TagTagSelection"][e] = True
                                 edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e])+")"
                                 labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
-                                edgeProperties["type"][e] = "curvedArrow"
+                                edgeProperties["type"][e] = "curve"
                                 edgeProperties["viewColor"][e] = self.colors['edges']
                                 edgeProperties["tag_1"][e] = str(nodeProperties['tag_id'][indexTags[t1]])
                                 edgeProperties["tag_2"][e] = str(nodeProperties['tag_id'][t2])

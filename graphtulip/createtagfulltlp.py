@@ -133,7 +133,7 @@ class CreateTagFullTlp(object):
                                         edgeProperties["TagTagSelection"][e] = True
                                         edgeProperties["viewLabel"][e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
                                         labelEdgeTlp[e] = "occ ("+str(edgeProperties["occ"][e]/2)+")"
-                                        edgeProperties["type"][e] = "curvedArrow"
+                                        edgeProperties["type"][e] = "curve"
                                         edgeProperties["viewColor"][e] = self.colors['edges']
                                         edgeProperties['tag_1'][e] = tmpIDNode[t1]
                                         edgeProperties['tag_2'][e] = tmpIDNode[t2]
