@@ -47,15 +47,15 @@ class GetAnnotationHydrate(Resource):
                 return makeResponse("ERROR : Impossible to identify 'entity_type' for annotation with aid: %d" % annotation_id, 205)
 
         if annotateComment:
-            req = "MATCH (find:annotation {annotation_id: %d})" % annotation_id
+            req = "MATCH (find:annotation {annotation_id: %d})-[:REFERS_TO]->(t: tag)  " % annotation_id
             req += "MATCH (find)-[:ANNOTATES]->(c:comment)"
             req += "MATCH (c)<-[:AUTHORSHIP]-(u:user)"
-            req += 'RETURN find, c.comment_id as entity_id, c.title as entity_title, c.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "comment" as entity_type ORDER BY c.timestamp DESC'
+            req += 'RETURN find, c.comment_id as entity_id, c.title as entity_title, c.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "comment" as entity_type, t.tag_id as tag_id, t.label as tag_label ORDER BY c.timestamp DESC'
         else:
-            req = "MATCH (find:annotation {annotation_id: %d})" % annotation_id
+            req = "MATCH (find:annotation {annotation_id: %d})-[:REFERS_TO]->(t: tag) " % annotation_id
             req += "MATCH (find)-[:ANNOTATES]->(p:post)"
             req += "MATCH (p)<-[:AUTHORSHIP]-(u:user)"
-            req += 'RETURN find, p.post_id as entity_id, p.title as entity_title, p.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "post" as entity_type ORDER BY p.timestamp DESC'
+            req += 'RETURN find, p.post_id as entity_id, p.title as entity_title, p.timestamp as entity_timestamp, u.user_id as user_id, u.name as user_name, "post" as entity_type, t.tag_id as tag_id, t.label as tag_label ORDER BY p.timestamp DESC'
 
         result = neo4j.query_neo4j(req)
         for record in result:
@@ -66,6 +66,8 @@ class GetAnnotationHydrate(Resource):
                 annotation['entity_title'] = record['entity_title']
                 annotation['entity_timestamp'] = record['entity_timestamp']
                 annotation['entity_type'] = record['entity_type']
+                annotation['tag_id'] = record['tag_id']
+                annotation['tag_label'] = record['tag_label']
             except KeyError:
                 return makeResponse("ERROR : Cannot find annotation with aid: %d" % annotation_id, 203)
 
