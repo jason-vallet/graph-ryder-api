@@ -215,7 +215,7 @@ class ImportFromJson(object):
                 self.neo4j_graph.merge(comment_node)
             except ConstraintError:
                 if ImportFromJson.verbose:
-                    print("WARNING: Comment cid %s already exists" % cooment_node['comment_id'] )
+                    print("WARNING: Comment cid %s already exists" % comment_node['comment_id'] )
 
             # Add relation
             # Language
@@ -289,11 +289,11 @@ class ImportFromJson(object):
                     query_neo4j(req).single()
                 except ResultError:
                     if ImportFromJson.verbose:
-                        print("WARNING : comment cid : %d has no comment parent pid : %s" % (comment_node['comment_id'], comment_fields['parent_comment_id']))
-                    ImportFromJson.unmatch_comment_parent +=1
-                    query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
-                    if comment_fields['parent_comment_id'] not in self.unavailable_comments_id:
-                        self.unavailable_comments_id.append(comment_fields['parent_comment_id'])
+                        print("WARNING : comment cid : %d has no comment parent cid : %s. Left attached to post." % (comment_node['comment_id'], comment_fields['parent_comment_id']))
+                    #ImportFromJson.unmatch_comment_parent +=1
+                    #query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
+                    #if comment_fields['parent_comment_id'] not in self.unavailable_comments_id:
+                    #    self.unavailable_comments_id.append(comment_fields['parent_comment_id'])
 
     def create_tags(self, json_tags):
         query_neo4j("CREATE CONSTRAINT ON (t:tag) ASSERT t.tag_id IS UNIQUE")
