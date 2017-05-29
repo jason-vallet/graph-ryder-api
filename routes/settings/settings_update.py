@@ -125,17 +125,29 @@ class HardUpdateFromEdgeRyders(Resource):
         #json_file = req.json()
         #importer.create_users(json_file)
         req= requests.get(config['importer_edgeryders']['json_posts_path'])
-        json_file = req.json()
-        importer.create_posts(json_file)
+        if req.status_code != 200:
+            print("Error req posts: "+str(req.status_code))
+        else:
+            json_file = req.json()
+            importer.create_posts(json_file)
         req= requests.get(config['importer_edgeryders']['json_comments_path'])
-        json_file = req.json()
-        importer.create_comments(json_file)
+        if req.status_code != 200:
+            print("Error req comments: "+str(req.status_code))
+        else:
+            json_file = req.json()
+            importer.create_comments(json_file)
         req= requests.get(config['importer_edgeryders']['json_tags_path'])
-        json_file = req.json()
-        importer.create_tags(json_file)
+        if req.status_code != 200:
+            print("Error req tags: "+str(req.status_code))
+        else:
+            json_file = req.json()
+            importer.create_tags(json_file)
         req= requests.get(config['importer_edgeryders']['json_annotations_path'])
-        json_file = req.json()
-        importer.create_annotations(json_file)
+        if req.status_code != 200:
+            print("Error req annotations: "+str(req.status_code))
+        else:
+            json_file = req.json()
+            importer.create_annotations(json_file)
         return makeResponse(importer.end_import(), 200)
 
 
