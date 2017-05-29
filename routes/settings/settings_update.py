@@ -40,6 +40,23 @@ class Status(Resource):
         return makeResponse({'labels': labels, 'data': [data]}, 200)
 
 
+class GetContentNotTagged(Resource):
+    def get(self):
+        req = "MATCH (p:post) WHERE NOT (p)<-[:ANNOTATES]- (: annotation) RETURN p.post_id AS post_id,p.label AS label, p.timestamp AS timestamp ORDER BY timestamp DESC"
+        result = neo4j.query_neo4j(req)
+        posts = []
+        for record in result:
+            posts.append({'post_id': record['post_id'], "label": record['label'], "timestamp": record['timestamp']})
+        
+        req = "MATCH (c:comment) WHERE NOT (c)<-[:ANNOTATES]- (: annotation) RETURN c.comment_id AS comment_id, c.label AS label, c.timestamp AS timestamp ORDER BY timestamp DESC"
+        result = neo4j.query_neo4j(req)
+        comments = []
+        for record in result:
+            comments.append({'comment_id': record['comment_id'], "label": record['label'], "timestamp": record['timestamp']})
+
+        return makeResponse({'posts': posts, "comments": comments}, 200)
+
+
 class Update(Resource):
     def get(self):
         importer = ImportFromJson(False)
