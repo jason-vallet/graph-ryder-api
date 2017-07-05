@@ -94,6 +94,16 @@ class CreateUserTlp(object):
         resp_edges_req = "MATCH (n1:user)-[:AUTHORSHIP]->(c:comment)-[:COMMENTS]->(c2:comment)<-[:AUTHORSHIP]-(n2:user) "
         resp_edges_req += "RETURN ID(n1),ID(n2), c, c2"
 
+        #Prepare tag associate resquest
+
+        tag_associate_req = "MATCH (n1:user)-[:AUTHORSHIP]->(content)<-[:ANNOTATES]-(:annotation)-[:REFERS_TO]->(t:tag) "
+        tag_associate_req += "WHERE content:post OR content:comment "
+        tag_associate_req += "RETURN ID(n1), COLLECT(DISTINCT t.tag_id)"
+
+
+
+
+
         # Get the users
         print("Read Users")
         result = self.neo4j_graph.run(nodes_req)
@@ -104,6 +114,12 @@ class CreateUserTlp(object):
             tmpIDNode[n] = qr[0]
             # keep the reference for edges creation
             indexNodes[qr[0]] = n
+
+        #add tag array as node property
+        nodeProperties["tagsAssociateNodeTl"] = self.tulip_graph.getIntegerVectorProperty("tagsAssociateNodeTlp")
+        result = self.neo4j_graph.run(tag_associate_req)
+        for qr in result:
+            nodeProperties["tagsAssociateNodeTl"][indexNodes[qr[0]]] = qr[1]
 
         # Get the comments edges
         print("Read Edges")

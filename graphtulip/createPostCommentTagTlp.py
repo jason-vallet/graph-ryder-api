@@ -141,5 +141,15 @@ class CreatePostCommentTagTlp(object):
 
                 e = self.tulip_graph.addEdge(indexTags[qr[0]], indexComments[qr[1]])
 
-            tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], "PostCommentTag"))
 
+            user_associate_req = "MATCH (n1:user)-[:AUTHORSHIP]->(content)<-[:ANNOTATES]-(:annotation)-[:REFERS_TO]->(t:tag) "
+            user_associate_req += "WHERE content:post OR content:comment "
+            user_associate_req += "RETURN t.tag_id, COLLECT(DISTINCT n1.user_id)"
+
+            #add user array as node property
+            nodeProperties["usersAssociateNodeTl"] = self.tulip_graph.getIntegerVectorProperty("usersAssociateNodeTlp")
+            result = self.neo4j_graph.run(user_associate_req)
+            for qr in result:
+                nodeProperties["usersAssociateNodeTl"][indexTags[qr[0]]] = qr[1]
+
+            tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], "PostCommentTag"))
