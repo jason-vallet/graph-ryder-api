@@ -9,6 +9,7 @@ from routes.annotation.annotation_routes import add_annotation_routes
 from routes.tag.tag_routes import add_tag_routes
 from routes.tulipr.tulip_routes import add_tulip_routes
 from routes.settings.settings_routes import add_settings_routes
+from routes.general.general_routes import add_general_routes
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -26,6 +27,7 @@ add_annotation_routes(api)
 add_tag_routes(api)
 add_tulip_routes(api)
 add_settings_routes(api)
+add_general_routes(api)
 
 if __name__ == '__main__':
     app.run(host=config['api']['host'],
