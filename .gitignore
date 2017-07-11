@@ -5,7 +5,3 @@ config.ini
 *.pyo
 data/
 routes/apidoc/
-*~
-fichier_erreur.txt
-script_error.py
-Sauvegarde Data/

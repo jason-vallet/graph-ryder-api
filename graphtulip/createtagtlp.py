@@ -97,9 +97,6 @@ class CreateTagTlp(object):
 
         # Prepare node and edge request
         req = "MATCH (t1: tag {tag_id: %d})--(a1: annotation)-[:ANNOTATES]->(e:post)<-[:ANNOTATES]-(a2: annotation)--(t2: tag) WHERE t1 <> t2 RETURN ID(t1), ID(t2), t1, t2, count(t1) as strength" % self.tag_id_src
-
-
-
         result = self.neo4j_graph.run(req)
 
         # Get the tags
@@ -126,7 +123,7 @@ class CreateTagTlp(object):
                 edgeProperties["viewColor"] = self.tulip_graph.getColorProperty("viewColor")
                 edgeProperties["viewColor"][e] = self.colors['edges']
 
-
-
         print("Export")
         tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))
+
+
