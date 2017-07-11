@@ -13,6 +13,7 @@ config.read("config.ini")
 def cleanString(s):
 #    s=s.replace("\n", "<br>")
     s=s.replace("\r", "")
+    #s=s.replace("\u", "u")
 #    return s.replace("\\","")
     return s
 
@@ -26,7 +27,7 @@ class ImportFromJson(object):
     unmatch_annotation_user = 0
     unmatch_annotation_tag = 0
     unmatch_annotation_entity = 0
-    
+
     def __init__(self, erase=False, debug=False):
         super(ImportFromJson, self).__init__()
         print('Initializing')
@@ -83,7 +84,7 @@ class ImportFromJson(object):
                 user_node['url_linkedin'] = cleanString(user_fields['url_linkedin'])
             if user_fields['url_twitter']:
                 user_node['url_twitter'] = cleanString(user_fields['url_twitter'])
- 
+
             try:
                 self.neo4j_graph.merge(user_node)
             except ConstraintError:
@@ -249,7 +250,7 @@ class ImportFromJson(object):
                 except ResultError:
                     if ImportFromJson.verbose:
                         print("WARNING : comment cid : %d has no author uid : %s" % (comment_node['comment_id'], comment_fields['user_id']))
-                    ImportFromJson.unmatch_comment_user+=1 
+                    ImportFromJson.unmatch_comment_user+=1
                     query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
                     if comment_fields['user_id'] not in self.unavailable_users_id:
                         self.unavailable_users_id.append(comment_fields['user_id'])
@@ -338,7 +339,7 @@ class ImportFromJson(object):
         print('Import annotations')
         #json_annotations = json.load(open(config['importer']['json_annotations_path']))
         ImportFromJson.unmatch_annotation_user = 0
-        ImportFromJson.unmatch_annotation_tag = 0 
+        ImportFromJson.unmatch_annotation_tag = 0
         ImportFromJson.unmatch_annotation_entity = 0
         for annotation_entry in json_annotations['nodes']:
             annotation_node = Node('annotation')
@@ -435,7 +436,6 @@ class ImportFromJson(object):
         "unmatch comment -> (parent): ", ImportFromJson.unmatch_comment_parent,"\n",
         "unmatch tag -> (parent): ", ImportFromJson.unmatch_tag_parent,"\n",
         "unmatch annotation -> (user): ", ImportFromJson.unmatch_annotation_user,"\n",
-        "unmatch annotation -> (tag): ", ImportFromJson.unmatch_annotation_tag,"\n", 
+        "unmatch annotation -> (tag): ", ImportFromJson.unmatch_annotation_tag,"\n",
         "unmatch annotation -> (entity): ", ImportFromJson.unmatch_annotation_entity,"\n")
         return response
-
