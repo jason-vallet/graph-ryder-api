@@ -2,6 +2,7 @@ from flask_restful import reqparse
 from flask import make_response
 import json
 import sys
+import shutil
 
 parser = reqparse.RequestParser()
 parser.add_argument('limit')
@@ -50,7 +51,11 @@ def addTimeFilter():
 
 def makeResponse(result, code=200, file=False):
     if file:
-        result = json.load(open(result, 'r', encoding="utf-8"))
+        try:
+             #strict = false is very important
+             result = json.load(open(result, 'r', encoding="utf-8"), strict=False)
+        except Exception as inst:
+            shutil.copyfile(result,'fichier_erreur.txt')
     result = json.dumps(result)
     response = make_response(result, code)
     response.headers.add('Access-Control-Allow-Origin', '*')

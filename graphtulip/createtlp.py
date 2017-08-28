@@ -182,5 +182,24 @@ class CreateTlp(object):
         print("Read Edges")
         self.createEdges(edges_req)
 
+        #add tag and user array as node property for the posts and comments nodes
+        tag_associate_req = "MATCH (content)<-[:ANNOTATES]-(:annotation)-[:REFERS_TO]->(t:tag) "
+        tag_associate_req += "WHERE content:post OR content:comment "
+        tag_associate_req += "RETURN ID(content), COLLECT(DISTINCT t.tag_id)"
+
+        self.nodeProperties["tagsAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("tagsAssociateNodeTlp")
+        result = self.neo4j_graph.run(tag_associate_req)
+        for qr in result:
+            self.nodeProperties["tagsAssociateNodeTlp"][self.indexNodes[qr[0]]] = qr[1]
+
+        user_associate_req = "MATCH (content)<-[:AUTHORSHIP]-(n:user) "
+        user_associate_req += "WHERE content:post OR content:comment "
+        user_associate_req += "RETURN ID(content), COLLECT(DISTINCT n.user_id)"
+
+        self.nodeProperties["usersAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("usersAssociateNodeTlp")
+        result = self.neo4j_graph.run(user_associate_req)
+        for qr in result:
+            self.nodeProperties["usersAssociateNodeTlp"][self.indexNodes[qr[0]]] = qr[1]
+
         print("Export")
         tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))
