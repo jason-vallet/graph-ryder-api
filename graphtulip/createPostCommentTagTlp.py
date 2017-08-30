@@ -147,9 +147,22 @@ class CreatePostCommentTagTlp(object):
             user_associate_req += "RETURN t.tag_id, COLLECT(DISTINCT n1.user_id)"
 
             #add user array as node property
-            nodeProperties["usersAssociateNodeTl"] = self.tulip_graph.getIntegerVectorProperty("usersAssociateNodeTlp")
+            nodeProperties["usersAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("usersAssociateNodeTlp")
             result = self.neo4j_graph.run(user_associate_req)
             for qr in result:
-                nodeProperties["usersAssociateNodeTl"][indexTags[qr[0]]] = qr[1]
+                nodeProperties["usersAssociateNodeTlp"][indexTags[qr[0]]] = qr[1]
+
+            postOrComment_associate_req = "MATCH (t:tag) "
+            postOrComment_associate_req += "OPTIONAL MATCH (t:tag)<-[:REFERS_TO]-(:annotation)-[:ANNOTATES]->(p:post) "
+            postOrComment_associate_req += "OPTIONAL MATCH (t:tag)<-[:REFERS_TO]-(:annotation)-[:ANNOTATES]->(c:comment) "
+            postOrComment_associate_req += "RETURN t.tag_id, COLLECT(DISTINCT p.post_id) + COLLECT(DISTINCT c.comment_id)"
+
+            #add post and comment array as node property
+            nodeProperties["postsOrCommentsAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("postsOrCommentsAssociateNodeTlp")
+            result = self.neo4j_graph.run(postOrComment_associate_req)
+            for qr in result:
+                if qr[0] in indexTags:
+                    nodeProperties["postsOrCommentsAssociateNodeTlp"][indexTags[qr[0]]] = qr[1]
+
 
             tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], "PostCommentTag"))

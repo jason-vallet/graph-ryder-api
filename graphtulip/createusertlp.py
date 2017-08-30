@@ -100,6 +100,11 @@ class CreateUserTlp(object):
         tag_associate_req += "WHERE content:post OR content:comment "
         tag_associate_req += "RETURN ID(n1), COLLECT(DISTINCT t.tag_id)"
 
+        postOrComment_associate_req = "MATCH (n1:user) "
+        postOrComment_associate_req += "OPTIONAL MATCH (n1:user)-[:AUTHORSHIP]->(p:post) "
+        postOrComment_associate_req += "OPTIONAL MATCH (n1:user)-[:AUTHORSHIP]->(c:comment) "
+        postOrComment_associate_req += "RETURN ID(n1), COLLECT(DISTINCT p.post_id) + COLLECT(DISTINCT c.comment_id)"
+
         # Get the users
         print("Read Users")
         result = self.neo4j_graph.run(nodes_req)
@@ -112,10 +117,16 @@ class CreateUserTlp(object):
             indexNodes[qr[0]] = n
 
         #add tag array as node property
-        nodeProperties["tagsAssociateNodeTl"] = self.tulip_graph.getIntegerVectorProperty("tagsAssociateNodeTlp")
+        nodeProperties["tagsAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("tagsAssociateNodeTlp")
         result = self.neo4j_graph.run(tag_associate_req)
         for qr in result:
-            nodeProperties["tagsAssociateNodeTl"][indexNodes[qr[0]]] = qr[1]
+            nodeProperties["tagsAssociateNodeTlp"][indexNodes[qr[0]]] = qr[1]
+
+        #add post and comment array as node property
+        nodeProperties["postsOrCommentsAssociateNodeTlp"] = self.tulip_graph.getIntegerVectorProperty("postsOrCommentsAssociateNodeTlp")
+        result = self.neo4j_graph.run(postOrComment_associate_req)
+        for qr in result:
+            nodeProperties["postsOrCommentsAssociateNodeTlp"][indexNodes[qr[0]]] = qr[1]
 
         # Get the comments edges
         print("Read Edges")
@@ -183,5 +194,3 @@ class CreateUserTlp(object):
 
         print("Export")
         tlp.saveGraph(self.tulip_graph, "%s%s.tlp" % (config['exporter']['tlp_path'], private_gid))
-
-
