@@ -33,18 +33,20 @@ class ExportSigma(tlp.ExportModule):
                 # edge label
                 elif prop.getName() == "viewLabel":
                     if prop.getEdgeStringValue(edge):
-                        label = prop.getEdgeStringValue(edge).replace('"', '\\\"')
+                        label = prop.getEdgeStringValue(edge).replace('\\', '\\\\')
+                        label = label.replace('"', '\\\"')
                         os << '"label":"%s", ' % label
                         # else:
                         # os << '%s"label":"edge%s", %s' % (hr_2t, edge.id, hr_n)
                 # other
                 elif prop.getEdgeDefaultStringValue() != prop.getEdgeStringValue(edge) \
                         and prop.getEdgeStringValue(edge):
-                    value = prop.getEdgeStringValue(edge)\
-                        .replace('"', '\\\"')\
-                        .replace("\n", "\\n")\
-                        .replace("\r", "\\r")\
-                        .replace("\t", "\\t")
+                    value = prop.getEdgeStringValue(edge).replace('\\', '\\\\')
+                    value = value.replace('"', '\\\"')
+#                        .replace("\n", "\\n")\
+#                        .replace("\r", "\\r")\
+#                        .replace("\t", "\\t")\
+#                        \t \r \n \\ \/ \" \b \f \u
                     os << '"%s":"%s", ' % (prop.getName(), value)
             # sigma id
             os << '"id":"%s" ' % edge.id
@@ -66,7 +68,8 @@ class ExportSigma(tlp.ExportModule):
                 # node label
                 elif prop.getName() == "viewLabel":
                     if prop.getNodeStringValue(node):
-                        label = prop.getNodeStringValue(node).replace('"', '\\\"')
+                        label = prop.getNodeStringValue(node).replace('\\', '\\\\')
+                        label = label.replace('"', '\\\"')
                         os << '"label":"%s", ' % label
                     else:
                         os << '"label":"node%s", ' % node.id
@@ -84,11 +87,12 @@ class ExportSigma(tlp.ExportModule):
                 # other
                 elif prop.getNodeDefaultStringValue() != prop.getNodeStringValue(node) \
                         and prop.getNodeStringValue(node):
-                    value = prop.getNodeStringValue(node)\
-                        .replace('"', '\\\"')\
-                        .replace("\n", "")\
-                        .replace("\r", "")\
-                        .replace("\t", "")
+                    value = prop.getNodeStringValue(node).replace('\\', '\\\\')
+                    value = value.replace('"', '\\\"')
+#                        .replace('"', '\\\"')\
+#                        .replace("\n", "")\
+#                        .replace("\r", "")\
+#                        .replace("\t", "")
                     os << '"%s":"%s", ' % (prop.getName(), value)
                 # sigma id
             os << '"id":"%s"' % node.id
