@@ -12,7 +12,10 @@ config.read("config.ini")
 
 def cleanString(s):
 #    s=s.replace("\n", "<br>")
-    s=s.replace("\r", "")
+    try:
+        s=s.replace("\r", "")
+    except Exception as inst:
+        print(inst)
 #    return s.replace("\\","")
     return s
 
@@ -52,36 +55,36 @@ class ImportFromJson(object):
             user_node = Node('user')
             user_fields = user_entry['node']
             user_node['user_id'] = int(user_fields['user_id'])
-            if user_fields['label']:
+            if 'label' in user_fields:
                 user_node['label'] = cleanString(user_fields['label'])
-            if user_fields['name']:
+            if 'name' in user_fields:
                 user_node['name'] = cleanString(user_fields['name'])
-            if user_fields['first_name']:
+            if 'first_name' in user_fields:
                 user_node['first_name'] = cleanString(user_fields['first_name'])
-            if user_fields['last_name']:
+            if 'last_name' in user_fields:
                 user_node['last_name'] = cleanString(user_fields['last_name'])
-            if user_fields['age']:
+            if 'age' in user_fields:
                 user_node['age'] = cleanString(user_fields['age'])
-            if user_fields['location']:
+            if 'location' in user_fields:
                 user_node['location'] = cleanString(user_fields['location'])
-            if user_fields['biography']:
+            if 'biography' in user_fields:
                 user_node['biography'] = cleanString(user_fields['biography'])
-            if user_fields['active']:
+            if 'active' in user_fields:
                 user_node['active'] = cleanString(user_fields['active'])
-            if user_fields['creation_date']:
+            if 'creation_date' in user_fields:
                 user_node['timestamp'] = int(time.mktime(datetime.strptime(user_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple())* 1000)
-            if user_fields['email']:
+            if 'email' in user_fields:
                 # user_node['email'] = user_fields['Email']
                 user_node['email'] = "nomail@nomail.com"
-            if user_fields['group_membership']:
+            if 'group_membership' in user_fields:
                 user_node['group_membership'] = cleanString(user_fields['group_membership']) # not well structure to be relation
-            if user_fields['url_website']:
+            if 'url_website' in user_fields:
                 user_node['url_website'] = cleanString(user_fields['url_website'])
-            if user_fields['url_facebook']:
+            if 'url_facebook' in user_fields:
                 user_node['url_facebook'] = cleanString(user_fields['url_facebook'])
-            if user_fields['url_linkedin']:
+            if 'url_linkedin' in user_fields:
                 user_node['url_linkedin'] = cleanString(user_fields['url_linkedin'])
-            if user_fields['url_twitter']:
+            if 'url_twitter' in user_fields:
                 user_node['url_twitter'] = cleanString(user_fields['url_twitter'])
  
             try:
@@ -124,13 +127,13 @@ class ImportFromJson(object):
             post_node = Node('post')
             post_fields = post_entry['node']
             post_node['post_id'] = int(post_fields['post_id'])
-            if post_fields['label']:
+            if 'label' in post_fields:
                 post_node['label'] = cleanString(post_fields['label'])
-            if post_fields['title']:
+            if 'title' in post_fields:
                 post_node['title'] = cleanString(post_fields['title'])
-            if post_fields['content']:
+            if 'content' in post_fields:
                 post_node['content'] = cleanString(post_fields['content'])
-            if post_fields['creation_date']:
+            if 'creation_date' in post_fields:
                 tmp_date = post_fields['creation_date'].split(" ")
                 post_node['timestamp'] = int(time.mktime(datetime.strptime(tmp_date[0]+' '+tmp_date[1]+' '+tmp_date[2], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
                 #print("Date ("+post_fields['creation_date']+ ") is uncompatbile when split in: "+post_fields['creation_date'][:21])
@@ -143,21 +146,21 @@ class ImportFromJson(object):
 
             # Add relation
             # Type
-            if post_fields['type']:
+            if 'type' in post_fields:
                 req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
                 req += "MERGE (pt:post_type { name : '%s'})" % post_fields['type']
                 req += "CREATE UNIQUE (p)-[:TYPE_IS]->(pt)"
                 query_neo4j(req)
 
             # Type
-            if post_fields['group_id']:
+            if 'group_id' in post_fields:
                 req = "MATCH (p:post { post_id : %d })" % post_node['post_id']
                 req += " MERGE (n:group { group_id : '%s'})" % post_fields['group_id']
                 req += " CREATE UNIQUE (p)-[:GROUP_IS]->(n)"
                 query_neo4j(req)
 
             # Author
-            if post_fields['user_id']:
+            if 'user_id' in post_fields:
                 try:
                     req = "MATCH (u:user { user_id : %s }) RETURN u" % post_fields['user_id']
                     query_neo4j(req).single()
@@ -167,7 +170,7 @@ class ImportFromJson(object):
 
                     user_node = Node('user')
                     user_node['user_id'] = int(post_fields['user_id'])
-                    if post_fields['user_name']:
+                    if 'user_name' in post_fields:
                         user_node['label'] = cleanString(post_fields['user_name'])
                         user_node['name'] = cleanString(post_fields['user_name'])
                     self.neo4j_graph.merge(user_node)
@@ -185,7 +188,7 @@ class ImportFromJson(object):
                     self.unavailable_users_id.append(post_fields['user_id'])
 
             # TimeTree
-            if post_fields['creation_date']:
+            if 'creation_date' in post_fields:
                 timestamp = int(time.mktime(datetime.strptime(tmp_date[0]+' '+tmp_date[1]+' '+tmp_date[2], "%a, %Y-%m-%d %H:%M").timetuple()) * 1000)
                 req = "MATCH (p:post { post_id : %d }) WITH p " % post_node['post_id']
                 req += "CALL ga.timetree.events.attach({node: p, time: %s, relationshipType: 'POST_ON'}) " % timestamp
@@ -203,13 +206,13 @@ class ImportFromJson(object):
             comment_node = Node('comment')
             comment_fields = comment_entry['node']
             comment_node['comment_id'] = int(comment_fields['comment_id'])
-            if comment_fields['label']:
+            if 'label' in comment_fields:
                 comment_node['label'] = cleanString(comment_fields['label'])
-            if comment_fields['title']:
+            if 'title' in comment_fields:
                 comment_node['title'] = cleanString(comment_fields['title'])
-            if comment_fields['content']:
+            if 'content' in comment_fields:
                 comment_node['content'] = cleanString(comment_fields['content'])
-            if comment_fields['creation_date']:
+            if 'creation_date' in comment_fields:
                 comment_node['timestamp'] = int(time.mktime(datetime.strptime(comment_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
             try:
                 self.neo4j_graph.merge(comment_node)
@@ -219,14 +222,14 @@ class ImportFromJson(object):
 
             # Add relation
             # Language
-            #if comment_fields['language']: # todo repare
+            #if 'language' in comment_fields: # todo repare
             #    req = "MATCH (c:comment { comment_id : %d })" % comment_node['comment_id']
             #    req += " MERGE (l:language { name : '%s'})" % comment_fields['language']
             #    req += " CREATE UNIQUE (u)-[:WRITE_IN]->(l)"
             #    query_neo4j(req)
 
             # ParentAuthor
-            if comment_fields['user_id']:
+            if 'user_id' in comment_fields:
                 try:
                     req = "MATCH (u:user { user_id : %s }) RETURN u" % comment_fields['user_id']
                     query_neo4j(req).single()
@@ -236,7 +239,7 @@ class ImportFromJson(object):
 
                     user_node = Node('user')
                     user_node['user_id'] = int(comment_fields['user_id'])
-                    if comment_fields['user_name']:
+                    if 'user_name' in comment_fields:
                         user_node['label'] = cleanString(comment_fields['user_name'])
                         user_node['name'] = cleanString(comment_fields['user_name'])
                     self.neo4j_graph.merge(user_node)
@@ -254,7 +257,7 @@ class ImportFromJson(object):
                     if comment_fields['user_id'] not in self.unavailable_users_id:
                         self.unavailable_users_id.append(comment_fields['user_id'])
             # ParentPost
-            if comment_fields['post_id']:
+            if 'post_id' in comment_fields:
                 try:
                     req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
                     req += "MATCH (p:post { post_id : %s }) " % comment_fields['post_id'].replace(",", "")
@@ -269,7 +272,7 @@ class ImportFromJson(object):
                         self.unavailable_posts_id.append(comment_fields['post_id'])
 
             # TimeTree
-            if comment_fields['creation_date']:
+            if 'creation_date' in comment_fields:
                 timestamp = int(time.mktime(datetime.strptime(comment_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
                 req = "MATCH (c:comment { comment_id : %d }) WITH c " % comment_node['comment_id']
                 req += "CALL ga.timetree.events.attach({node: c, time: %s, relationshipType: 'POST_ON'}) " % timestamp
@@ -281,7 +284,7 @@ class ImportFromJson(object):
             comment_node = Node('comment')
             comment_fields = comment_entry['node']
             comment_node['comment_id'] = int(comment_fields['comment_id'])
-            if comment_fields['parent_comment_id'] and comment_fields['parent_comment_id'] != str(0):
+            if 'parent_comment_id' in comment_fields and comment_fields['parent_comment_id'] != str(0):
                 try:
                     req = "MATCH (c:comment { comment_id : %d }) " % comment_node['comment_id']
                     req += "MATCH (parent:comment { comment_id : %d }) " % int(comment_fields['parent_comment_id'])
@@ -292,7 +295,7 @@ class ImportFromJson(object):
                         print("WARNING : comment cid : %d has no comment parent cid : %s. Left attached to post." % (comment_node['comment_id'], comment_fields['parent_comment_id']))
                     #ImportFromJson.unmatch_comment_parent +=1
                     #query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment_node['comment_id'])
-                    #if comment_fields['parent_comment_id'] not in self.unavailable_comments_id:
+                    #if  comment_node['parent_comment_id'] not in self.unavailable_comments_id:
                     #    self.unavailable_comments_id.append(comment_fields['parent_comment_id'])
 
     def create_tags(self, json_tags):
@@ -304,9 +307,9 @@ class ImportFromJson(object):
             tag_node = Node('tag')
             tag_fields = tag_entry['node']
             tag_node['tag_id'] = int(tag_fields['tag_id'])
-            if tag_fields['label']:
+            if 'label' in tag_fields:
                 tag_node['label'] = cleanString(tag_fields['label'])
-            if tag_fields['name']:
+            if 'name' in tag_fields:
                 tag_node['name'] = cleanString(tag_fields['name'])
             try:
                 self.neo4j_graph.merge(tag_node)
@@ -319,7 +322,7 @@ class ImportFromJson(object):
             tag_node = Node('tag')
             tag_fields = tag_entry['node']
             tag_node['tag_id'] = int(tag_fields['tag_id'])
-            if tag_fields['parent_tag_id'] and tag_fields['parent_tag_id'] != str(0):
+            if 'parent_tag_id' in tag_fields and tag_fields['parent_tag_id'] != str(0):
                 try:
                     req = "MATCH (t:tag { tag_id : %d }) " % tag_node['tag_id']
                     req += "MATCH (parent:tag { tag_id : %d }) " % int(tag_fields['parent_tag_id'])
@@ -344,11 +347,11 @@ class ImportFromJson(object):
             annotation_node = Node('annotation')
             annotation_fields = annotation_entry['node']
             annotation_node['annotation_id'] = int(annotation_fields['annotation_id'])
-            #if annotation_fields['label']:
+            #if 'label' in annotation_fields:
             #    annotation_node['label'] = annotation_fields['label']
-            if annotation_fields['quote']:
+            if 'quote' in annotation_fields:
                 annotation_node['quote'] = cleanString(annotation_fields['quote'])
-            if annotation_fields['creation_date']:
+            if 'creation_date' in annotation_fields:
                 annotation_node['timestamp'] = int(time.mktime(datetime.strptime(annotation_fields['creation_date'], "%A, %B %d, %Y - %H:%M").timetuple()) * 1000)
             try:
                 self.neo4j_graph.merge(annotation_node)
@@ -359,7 +362,7 @@ class ImportFromJson(object):
             to_pass = False
             # Add relation
             # Author
-            if annotation_fields['user_id']:
+            if 'user_id' in annotation_fields:
                 try:
                     req = "MATCH (u:user { user_id : %s }) RETURN u" % annotation_fields['user_id']
                     query_neo4j(req).single()
@@ -369,9 +372,9 @@ class ImportFromJson(object):
 
                     user_node = Node('user')
                     user_node['user_id'] = int(annotation_fields['user_id'])
-                    if annotation_fields['user_name']:
+                    if 'user_name' in annotation_fields:
                         user_node['label'] = cleanString(annotation_fields['user_name'])
-                    if annotation_fields['user_name']:
+                    if 'user_name' in annotation_fields:
                         user_node['name'] = cleanString(annotation_fields['user_name'])
                     self.neo4j_graph.merge(user_node)
 
@@ -389,7 +392,7 @@ class ImportFromJson(object):
                         self.unavailable_users_id.append(annotation_fields['user_id'])
                     to_pass = True
             # Tag
-            if annotation_fields['tag_id'] and not to_pass:
+            if 'tag_id' in annotation_fields and not to_pass:
                 try:
                     req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
                     req += "MATCH (t:tag { tag_id : %s }) " % annotation_fields['tag_id'].replace(",", "")
@@ -404,7 +407,7 @@ class ImportFromJson(object):
                         self.unavailable_tags_id.append(annotation_fields['tag_id'])
                     to_pass = True
             # Post/comment
-            if annotation_fields['entity_id'] and not to_pass:
+            if 'entity_id' in annotation_fields and not to_pass:
                 try:
                     req = "MATCH (a:annotation { annotation_id : %d }) " % annotation_node['annotation_id']
                     if str(annotation_fields['entity_type'])==str('comment') :

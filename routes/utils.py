@@ -56,6 +56,7 @@ def makeResponse(result, code=200, file=False):
              result = json.load(open(result, 'r', encoding="utf-8"), strict=False)
         except Exception as inst:
             shutil.copyfile(result,'fichier_erreur.txt')
+            print(inst)
     result = json.dumps(result)
     response = make_response(result, code)
     response.headers.add('Access-Control-Allow-Origin', '*')
