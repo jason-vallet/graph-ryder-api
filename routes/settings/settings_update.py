@@ -76,8 +76,8 @@ class Update(Resource):
 class HardUpdate(Resource):
     def get(self):
         importer = ImportFromJson(True)
-        json_file = json.load(open(config['importer']['json_users_path']))
-        importer.create_users(json_file)
+        #json_file = json.load(open(config['importer']['json_users_path']))
+        #importer.create_users(json_file)
         json_file = json.load(open(config['importer']['json_posts_path']))
         importer.create_posts(json_file)
         json_file = json.load(open(config['importer']['json_comments_path']))

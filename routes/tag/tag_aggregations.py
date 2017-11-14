@@ -52,6 +52,41 @@ class CoocurrencesByTag(Resource):
         except ResultError:
             return makeResponse("ERROR",500)
 
+class ContentWithCommonTags(Resource):
+    def get(self, tag_id1, tag_id2):
+        req = "MATCH (find:tag {tag_id: %d}) RETURN find" % tag_id1
+        result = neo4j.query_neo4j(req)
+        tag1 = result.single()['find'].properties
+
+        req = "MATCH (find:tag {tag_id: %d}) RETURN find" % tag_id2
+        result = neo4j.query_neo4j(req)
+        tag2 = result.single()['find'].properties
+
+        response = {}
+        if tag1['tag_id'] <= tag2['tag_id']:
+            response['tag_src'] = tag1
+            response['tag_dst'] = tag2
+        else:
+            response['tag_src'] = tag2
+            response['tag_dst'] = tag1
+
+        req = "match (t1: tag {tag_id: %d})<-[:REFERS_TO]-(a: annotation)-[:ANNOTATES]->(e) " % tag_id1
+        req += "match (e)<-[:ANNOTATES]-(a2: annotation)-[:REFERS_TO]->(t2: tag {tag_id: %d}) " % tag_id2
+        req += "match (e)<-[:AUTHORSHIP]-(u: user) "
+        req += "return distinct t1.tag_id, CASE e.post_id when null then e.comment_id else e.post_id end as id, CASE e.post_id WHEN null THEN 'comment' ELSE 'post' END as entity_type, e.timestamp as timestamp, e.label as label, u.user_id as user_id, u.label as user_label, t2.tag_id ORDER BY e.timestamp DESC"
+        result = neo4j.query_neo4j(req)
+
+        tags = []
+        for record in result:
+            tags.append({'id': record['id'], "entity_type": record['entity_type'], "timestamp": record['timestamp'], 'label': record['label'], 'user_id': record['user_id'], 'user_label': record['user_label']}) 
+
+        response['list'] = tags
+        try:
+            tags
+        except ResultError:
+            return makeResponse("ERROR",500)
+        return makeResponse(response, 200)
+
 class ContentWithCommonTagsByDate(Resource):
     def get(self, tag_id1, tag_id2, start_date, end_date):
         req = "match (t1: tag {tag_id: %d})<-[:REFERS_TO]-(a: annotation)-[:ANNOTATES]->(e) " % tag_id1

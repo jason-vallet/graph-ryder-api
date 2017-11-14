@@ -7,7 +7,7 @@ def add_user_routes(api):
     # Getters
     api.add_resource(GetUsers, '/users')
     api.add_resource(GetUser, '/users/<int:user_id>')
-    api.add_resource(GetUserHydrate, '/users/hydrate/<int:user_id>')
+    api.add_resource(GetUserHydrate, '/user/hydrate/<int:user_id>')
 
     # Count
     api.add_resource(CountUsersByTimestamp, '/users/count/timestamp')

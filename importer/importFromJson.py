@@ -311,6 +311,7 @@ class ImportFromJson(object):
                 tag_node['label'] = cleanString(tag_fields['label'])
             if 'name' in tag_fields:
                 tag_node['name'] = cleanString(tag_fields['name'])
+                tag_node['label'] = cleanString(tag_fields['name'])
             try:
                 self.neo4j_graph.merge(tag_node)
             except ConstraintError:
