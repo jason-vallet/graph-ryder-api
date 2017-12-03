@@ -1,5 +1,5 @@
 from routes.settings.settings_upload import UploadUsersFile, UploadPostsFile, UploadCommentsFile
-from routes.settings.settings_update import Update, HardUpdate, UpdateFromEdgeRyders, HardUpdateFromEdgeRyders, Info, Status, GetContentNotTagged, UpdateUsers, UpdatePosts, UpdateComments, UpdateTags, UpdateAnnotations
+from routes.settings.settings_update import *
 
 
 def add_settings_routes(api):
@@ -14,6 +14,7 @@ def add_settings_routes(api):
     api.add_resource(GetContentNotTagged, '/content/nottagged')
     api.add_resource(HardUpdate, '/hardUpdate')
     api.add_resource(HardUpdateFromEdgeRyders, '/hardUpdateFromEdgeRyders')
+    api.add_resource(HardUpdateFromEdgeRydersDiscourse, '/hardUpdateFromEdgeRydersDiscourse')
     api.add_resource(UpdateFromEdgeRyders, '/UpdateFromEdgeRyders')
     api.add_resource(Update, '/update')
     api.add_resource(UpdateUsers, '/update/users')

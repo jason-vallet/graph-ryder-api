@@ -5,6 +5,7 @@ import json
 from time import strftime
 from flask_restful import Resource, reqparse
 from importer.importFromJson import ImportFromJson
+from importer.importFromDiscourse import ImportFromDiscourse
 from routes.utils import makeResponse
 from neo4j.v1 import ResultError
 from connector import neo4j
@@ -148,6 +149,42 @@ class HardUpdateFromEdgeRyders(Resource):
         else:
             json_file = req.json()
             importer.create_annotations(json_file)
+        return makeResponse(importer.end_import(), 200)
+
+
+class HardUpdateFromEdgeRydersDiscourse(Resource):
+    def get(self):
+        importer = ImportFromDiscourse(True)
+        Continue = True
+        page_val = 0
+
+        while Continue:
+            print(page_val)
+            cat_url = ann_url = config['importer_discourse']['abs_path']+config['importer_discourse']['tag_rel_path']+config['importer_discourse']['tag_focus']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&page="+str(page_val)
+            try:
+                cat_req = requests.get(cat_url)
+            except:
+                print('request problem on topics page='+str(page_val))
+                break
+            try:
+                cat_json = cat_req.json()
+            except:
+                print("failed read on topic page "+str(page_val))
+                cat_json = []
+
+            for post in cat_json['topic_list']['topics']:
+                comment_n = importer.create_posts(post['id'], post['title'])
+
+            if len(cat_json['topic_list']['topics']) == 30:
+                page_val += 1
+            else:
+                Continue = False   
+            #if page_val > 1:
+                break
+
+        importer.create_tags()
+        importer.create_annotations()
+
         return makeResponse(importer.end_import(), 200)
 
 

@@ -53,7 +53,7 @@ class GetTagHydrate(Resource):
         req += " MATCH (find)<-[:REFERS_TO]-(a:annotation)"
         req += " MATCH (a)-[:ANNOTATES]->(p:post)"
         req += ' MATCH (p)<-[:AUTHORSHIP]-(u:user)'
-        req += ' RETURN a.annotation_id AS annotation_id, a.timestamp AS annotation_timestamp, p.post_id as post_id, p.title as post_title, p.timestamp as post_timestamp, u.user_id as user_id, u.name as user_name ORDER BY post_timestamp DESC'
+        req += ' RETURN a.annotation_id AS annotation_id, a.timestamp AS annotation_timestamp, p.post_id as post_id, p.title as post_title, p.timestamp as post_timestamp, u.user_id as user_id, u.label as user_name ORDER BY post_timestamp DESC'
         result = neo4j.query_neo4j(req)
         annotations_posts = []
         annotations_posts_id = []
@@ -77,7 +77,7 @@ class GetTagHydrate(Resource):
         req += " MATCH (find)<-[:REFERS_TO]-(a:annotation)"
         req += " MATCH (a)-[:ANNOTATES]->(c:comment)"
         req += ' MATCH (c)<-[:AUTHORSHIP]-(u:user)'
-        req += ' RETURN a.annotation_id AS annotation_id, a.timestamp AS annotation_timestamp, c.comment_id as comment_id, c.title as comment_title, c.timestamp as comment_timestamp, u.user_id as user_id, u.name as user_name ORDER BY comment_timestamp DESC'
+        req += ' RETURN a.annotation_id AS annotation_id, a.timestamp AS annotation_timestamp, c.comment_id as comment_id, c.title as comment_title, c.timestamp as comment_timestamp, u.user_id as user_id, u.label as user_name ORDER BY comment_timestamp DESC'
         result = neo4j.query_neo4j(req)
         annotations_comments = []
         annotations_comments_id = []
