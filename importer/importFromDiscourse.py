@@ -458,7 +458,7 @@ class ImportFromDiscourse(object):
 
     def end_import(self):
 
-        tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
+        #tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
         response = {'users': self.unavailable_users_id, "posts": self.unavailable_posts_id, 'comments': self.unavailable_comments_id, "tags":  self.unavailable_tags_id}
         print(response)
         print(" unmatch post -> (user): ", ImportFromDiscourse.unmatch_post_user,"\n",

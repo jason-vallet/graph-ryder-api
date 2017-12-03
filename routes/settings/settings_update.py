@@ -161,16 +161,21 @@ class HardUpdateFromEdgeRydersDiscourse(Resource):
         while Continue:
             print(page_val)
             cat_url = ann_url = config['importer_discourse']['abs_path']+config['importer_discourse']['tag_rel_path']+config['importer_discourse']['tag_focus']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&page="+str(page_val)
-            try:
-                cat_req = requests.get(cat_url)
-            except:
-                print('request problem on topics page='+str(page_val))
-                break
-            try:
-                cat_json = cat_req.json()
-            except:
-                print("failed read on topic page "+str(page_val))
-                cat_json = []
+            not_ok = True
+            while not_ok:
+                try:
+                    cat_req = requests.get(cat_url)
+                except:
+                    print('request problem on topics page='+str(page_val))
+                    time.sleep(2)
+                    continue
+                try:
+                    cat_json = cat_req.json()
+                except:
+                    print("failed read on topic page "+str(page_val))
+                    time.sleep(2)
+                    continue
+                not_ok = False
 
             for post in cat_json['topic_list']['topics']:
                 comment_n = importer.create_posts(post['id'], post['title'])
