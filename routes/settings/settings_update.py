@@ -160,7 +160,7 @@ class HardUpdateFromEdgeRydersDiscourse(Resource):
 
         while Continue:
             print(page_val)
-            cat_url = ann_url = config['importer_discourse']['abs_path']+config['importer_discourse']['tag_rel_path']+config['importer_discourse']['tag_focus']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&page="+str(page_val)
+            cat_url = config['importer_discourse']['abs_path']+config['importer_discourse']['tag_rel_path']+config['importer_discourse']['tag_focus']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&page="+str(page_val)
             not_ok = True
             while not_ok:
                 try:

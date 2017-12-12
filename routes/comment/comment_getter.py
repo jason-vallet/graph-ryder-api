@@ -19,7 +19,7 @@ class GetCommentHydrate(Resource):
         req = "MATCH (find:comment {comment_id: %d}) " % comment_id
         req += "OPTIONAL MATCH (find)<-[:AUTHORSHIP]-(author:user) "
         req += "OPTIONAL MATCH (find)-[:COMMENTS]->(post:post) "
-        req += "RETURN find, author.user_id AS user_id, author.label AS user_name, post.post_id AS post_id, post.title AS post_title"
+        req += "RETURN find, author.user_id AS user_id, author.label AS user_name, post.post_id AS post_id, post.title AS post_title, post.url AS post_url"
         result = neo4j.query_neo4j(req)
         author = {}
         post = {}
@@ -34,6 +34,8 @@ class GetCommentHydrate(Resource):
                     post['post_id'] = record['post_id']
                 if record['post_title']:
                     post['post_title'] = record['post_title']
+                if record['post_url']:
+                    post['post_url'] = record['post_url']
             except KeyError:
                 pass
         # annotations

@@ -37,6 +37,7 @@ class ImportFromDiscourse(object):
     unmatch_tag_parent = 0
     unmatch_annotation_user = 0
     unmatch_annotation_tag = 0
+    unmatch_annotation_tag_open = 0
     unmatch_annotation_entity = 0
     
     def __init__(self, erase=False, debug=False):
@@ -54,6 +55,7 @@ class ImportFromDiscourse(object):
         self.unavailable_posts_id = []
         self.unavailable_comments_id = []
         self.unavailable_tags_id = []
+        self.map_tag_to_tag = {}
 
 
     def createUser(self, id, label, avatar):
@@ -79,7 +81,7 @@ class ImportFromDiscourse(object):
         query_neo4j("CREATE CONSTRAINT ON (n:user) ASSERT n.user_id IS UNIQUE")
 
 
-    def createContent(self, id, type, label, content, timestamp):
+    def createContent(self, id, type, label, content, timestamp, url):
         content_node = Node(type)
         content_node[type+'_id'] = id
         content_node['label'] = cleanString(label)
@@ -87,6 +89,7 @@ class ImportFromDiscourse(object):
         content_node['content'] = cleanString(content)
         timestamp = (timestamp[0:23]+'000')
         content_node['timestamp'] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
+        content_node['url'] = config['importer_discourse']['abs_path']+config['importer_discourse']['topic_rel_path']+cleanString(url)
         try:
             self.neo4j_graph.merge(content_node)
         except ConstraintError:
@@ -96,7 +99,7 @@ class ImportFromDiscourse(object):
         labelp = self.graph.getStringProperty('label')
         contentp = self.graph.getStringProperty('content')
         typep = self.graph.getStringProperty('type')
-        timestampp = self.graph.getIntegerProperty('timestamp')
+        timestampp = self.graph.getDoubleProperty('timestamp')
         n = self.graph.addNode()
         idp[n] = id
         labelp[n] = label
@@ -110,7 +113,7 @@ class ImportFromDiscourse(object):
     def create_posts(self, id, title):
         query_neo4j("CREATE CONSTRAINT ON (p:post) ASSERT p.post_id IS UNIQUE")
         ImportFromDiscourse.unmatch_post_user = 0
-        ImportFromDiscourse.unmatch_comment_post += 1
+        ImportFromDiscourse.unmatch_comment_post = 0
         idp = self.graph.getIntegerProperty('id')
         labelp = self.graph.getStringProperty('label')
         typep = self.graph.getStringProperty('type')
@@ -167,7 +170,7 @@ class ImportFromDiscourse(object):
             if i == 0:
             # first 'comment' of the topic is the main post
                 type = 'post'
-                post_n = self.createContent(comment['id'], type, title, comment['cooked'], comment['created_at'])
+                post_n = self.createContent(comment['id'], type, title, comment['cooked'], comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
                 self.node_tulip['posts'][comment['id']] = post_n
                 self.node_tulip['comments'][comment['id']] = post_n
                 comment_n = post_n
@@ -192,7 +195,7 @@ class ImportFromDiscourse(object):
                 content = content.replace('src=\\"//', 'href=\\"https://')
                 content = content.replace('src=\\"/', 'href=\\"'+config['importer_discourse']['abs_path'])
 
-                comment_n = self.createContent(comment['id'], type, label, content, comment['created_at'])
+                comment_n = self.createContent(comment['id'], type, label, content, comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
                 self.node_tulip['comments'][comment['id']] = comment_n
             
                 # response to a comment
@@ -297,7 +300,7 @@ class ImportFromDiscourse(object):
         page_val = 0
         self.max_tag_id = 0
         while Continue:
-            tag_url = config['importer_discourse']['abs_path']+config['importer_discourse']['codes_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&per_page=1000&page="+str(page_val)
+            tag_url = config['importer_discourse']['abs_path']+config['importer_discourse']['codes_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&per_page=5000&page="+str(page_val)
             not_ok = True
             while not_ok:
                 try:
@@ -320,14 +323,17 @@ class ImportFromDiscourse(object):
                 if not(tag['id'] in self.node_tulip['tags']):
                     if not(tag['name'].lower() in self.tags):
                         tag_n = self.createTag(tag['id'], tag['name'].lower())
+                        self.map_tag_to_tag[tag['id']] = tag['id']
+                        self.tags[tag['name'].lower()] = tag['id']
                     else:
+                    # if duplicate using mapping
                         tag_n = self.node_tulip['tags'][self.tags[tag['name'].lower()]]
+                        self.map_tag_to_tag[tag['id']] = self.tags[tag['name'].lower()]
                     self.node_tulip['tags'][tag['id']] = tag_n
-                    self.tags[tag['name'].lower()] = tag['id']
-                    self.max_tag_id = max(self.max_tag_id, tag['id']+1)
+                    
                 # no need to create tag hierarchy as the route does not give ancestry info
             
-            if len(tag_json) == 1000:
+            if len(tag_json) == 5000:
                 page_val += 1
             else:
                 Continue = False
@@ -345,7 +351,7 @@ class ImportFromDiscourse(object):
         idp = self.graph.getIntegerProperty('id')
         quotep = self.graph.getStringProperty('quote')
         typep = self.graph.getStringProperty('type')
-        timestampp = self.graph.getIntegerProperty('timestamp')
+        timestampp = self.graph.getDoubleProperty('timestamp')
         n = self.graph.addNode()
         idp[n] = id
         quotep[n] = quote
@@ -362,11 +368,13 @@ class ImportFromDiscourse(object):
         ImportFromDiscourse.unmatch_annotation_user = 0
         ImportFromDiscourse.unmatch_annotation_tag = 0 
         ImportFromDiscourse.unmatch_annotation_entity = 0
+        ImportFromDiscourse.unmatch_annotation_tag_req = 0
+        ImportFromDiscourse.unmatch_annotation_entity_req = 0
         Continue = True
         page_val = 0
         while Continue:
         # get pages of 1000 annotations
-            ann_url = config['importer_discourse']['abs_path']+config['importer_discourse']['annotations_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&per_page=1000&page="+str(page_val)
+            ann_url = config['importer_discourse']['abs_path']+config['importer_discourse']['annotations_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&discourse_tag="+config['importer_discourse']['tag_focus']+"&per_page=1000&page="+str(page_val)
             not_ok = True
             while not_ok:
                 try:
@@ -387,34 +395,49 @@ class ImportFromDiscourse(object):
             for annotation in ann_json:
                 # only select annotations which link to existing posts and tags
                 if annotation['post_id'] in self.node_tulip['comments']:
-                    if not(annotation['tag_id'] in self.node_tulip['tags']):
-                        if annotation['tag_id'] != None:
-                            self.unavailable_tags_id.append(str(annotation['tag_id']))
-                            #print("Missing tag "+str(annotation['tag_id'])+" for annotation "+str(annotation['id'])+" on registered post "+str(annotation['post_id']))
-                            continue
-                        else:
-                            print("Missing tag "+str(annotation['quote'])+" for annotation "+str(annotation['id'])+" on registered post "+str(annotation['post_id']))
-                        if not(annotation['quote'].lower() in self.tags):
-                            tag_n = self.createTag(max_tag_id, annotation['quote'].lower())
-                            node_tulip['tags'][max_tag_id] = tag_n
-                            tags[annotation['quote'].lower()] = max_tag_id
-                            max_tag_id+=1
-                        annotation['tag_id']=self.tags[annotation['quote'].lower()]
+                    if not(annotation['code_id'] in self.map_tag_to_tag):
+                        if not(str(annotation['code_id']) in self.unavailable_tags_id):
+                            self.unavailable_tags_id.append(str(annotation['code_id']))
+                        ImportFromDiscourse.unmatch_annotation_tag +=1
+                        continue
+###
+#                        if not(annotation['tag_id'] in self.tags):
+#                            tag_n = self.createTag(annotation['tag_id'], str(annotation['tag_id']))
+#                        else:
+#                            tag_n = self.node_tulip['tags'][self.tags[annotation['tag_id']]]
+#                        self.node_tulip['tags'][annotation['tag_id']] = tag_n
+#                        self.tags[annotation['tag_id']] = annotation['tag_id']
+#                        self.max_tag_id = max(self.max_tag_id, annotation['tag_id']+1)
+###
 
+                    if not(annotation['post_id'] in self.node_tulip['comments']):
+                        if not(str(annotation['post_id']) in self.unavailable_comments_id):
+                            self.unavailable_comments_id.append(str(annotation['post_id']))
+                        ImportFromDiscourse.unmatch_annotation_entity +=1
+                        continue
+###
+#                        type = 'post'
+#                        post_n = self.createContent(annotation['post_id'], 'other', "NOTHING", "MISSING CONTENT", "1971-01-01T00:00:01.000Z", str(annotation['post_id'])+'/'+str(0))
+#                        self.node_tulip['posts'][annotation['post_id']] = post_n
+#                        self.node_tulip['comments'][annotation['post_id']] = post_n
+###
 
                     annotation_n = self.createAnnotation(annotation['id'], annotation['quote'], annotation['created_at'])
                     # link annotation to tag
-                    self.graph.addEdge(annotation_n, self.node_tulip['tags'][annotation['tag_id']])
+                    self.graph.addEdge(annotation_n, self.node_tulip['tags'][annotation['code_id']])
                     try:
                         req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
-                        req += "MATCH (t:tag { tag_id : %s }) " % annotation['tag_id']
+                        req += "MATCH (t:tag { tag_id : %s }) " % self.map_tag_to_tag[annotation['code_id']]
                         req += "CREATE UNIQUE (a)-[:REFERS_TO]->(t) RETURN t"
                         query_neo4j(req).single()
                     except ResultError:
                         if ImportFromDiscourse.verbose:
-                            print("WARNING : annotation %d has no corresponding tag %s" % (annotation['id'], annotation['tag_id']))
-                        ImportFromDiscourse.unmatch_annotation_tag +=1
+                            print("WARNING : annotation %d has no corresponding tag %s (image of %s)" % (annotation['id'], annotation['code_id'], self.map_tag_to_tag[annotation['code_id']]))
+                        ImportFromDiscourse.unmatch_annotation_tag_req +=1
+                        if not(str(annotation['code_id']) in self.unavailable_tags_id):
+                            self.unavailable_tags_id.append(str(annotation['code_id']))
                         query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation['id'])
+                        continue
                     # link to content
                     type = 'comment'
                     if  annotation['post_id'] in self.node_tulip['posts']:
@@ -428,26 +451,27 @@ class ImportFromDiscourse(object):
                     except ResultError:
                         if ImportFromDiscourse.verbose:
                             print("WARNING : annotation %d has no corresponding %s id %s" % (annotation['id'], type, annotation['post_id']))
-                        ImportFromDiscourse.unmatch_annotation_entity +=1
+                        ImportFromDiscourse.unmatch_annotation_entity_req +=1
                         query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation['id'])
+                        continue
                     # link to creator
-                    if annotation['creator_id'] in self.node_tulip['users']:
-                        self.graph.addEdge(annotation_n, self.node_tulip['users'][annotation['creator_id']])
-                        try:
-                            req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
-                            req += "MATCH (u:user { user_id : %s }) " % annotation['creator_id']
-                            req += "CREATE UNIQUE (u)-[:AUTHORSHIP]->(a) RETURN u"
-                            query_neo4j(req).single()
-                        except ResultError:
-                            if ImportFromDiscourse.verbose:
-                                print("WARNING : annotation id %d has no author id %s" % (annotation['id'], annotation['creator_id']))
-                            ImportFromDiscourse.unmatch_annotation_user+=1
-                            query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation['id'])
-                            if annotation['creator_id'] not in self.unavailable_users_id:
-                                self.unavailable_users_id.append(annotation['creator_id'])
-                    else:
-                        self.unavailable_users_id.append(str(annotation['creator_id']))
-                        #print("Unknown creator "+str(annotation['creator_id'])+" for annotation "+str(annotation['id'])+" on registered post "+str(annotation['post_id']))
+                    #if annotation['creator_id'] in self.node_tulip['users']:
+                    #    self.graph.addEdge(annotation_n, self.node_tulip['users'][annotation['creator_id']])
+                    #    try:
+                    #        req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
+                    #        req += "MATCH (u:user { user_id : %s }) " % annotation['creator_id']
+                    #        req += "CREATE UNIQUE (u)-[:AUTHORSHIP]->(a) RETURN u"
+                    #        query_neo4j(req).single()
+                    #    except ResultError:
+                    #        if ImportFromDiscourse.verbose:
+                    #            print("WARNING : annotation id %d has no author id %s" % (annotation['id'], annotation['creator_id']))
+                    #        ImportFromDiscourse.unmatch_annotation_user+=1
+                    #        query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation['id'])
+                    #        if annotation['creator_id'] not in self.unavailable_users_id:
+                    #            self.unavailable_users_id.append(annotation['creator_id'])
+                    #else:
+                    #    self.unavailable_users_id.append(str(annotation['creator_id']))
+                    #    print("Unknown creator "+str(annotation['creator_id'])+" for annotation "+str(annotation['id'])+" on registered post "+str(annotation['post_id']))
 
             if len(ann_json) == 1000:
                 page_val += 1
@@ -458,16 +482,18 @@ class ImportFromDiscourse(object):
 
     def end_import(self):
 
-        #tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
+        tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
         response = {'users': self.unavailable_users_id, "posts": self.unavailable_posts_id, 'comments': self.unavailable_comments_id, "tags":  self.unavailable_tags_id}
         print(response)
         print(" unmatch post -> (user): ", ImportFromDiscourse.unmatch_post_user,"\n",
         "unmatch comment -> (user): ", ImportFromDiscourse.unmatch_comment_user,"\n",
         "unmatch comment -> (post): ", ImportFromDiscourse.unmatch_comment_post,"\n",
         "unmatch comment -> (parent): ", ImportFromDiscourse.unmatch_comment_parent,"\n",
-        "unmatch tag -> (parent): ", ImportFromDiscourse.unmatch_tag_parent,"\n",
+        "unmatch code -> (parent): ", ImportFromDiscourse.unmatch_tag_parent,"\n",
         "unmatch annotation -> (user): ", ImportFromDiscourse.unmatch_annotation_user,"\n",
-        "unmatch annotation -> (tag): ", ImportFromDiscourse.unmatch_annotation_tag,"\n", 
-        "unmatch annotation -> (entity): ", ImportFromDiscourse.unmatch_annotation_entity,"\n")
+        "unmatch annotation -> (code): ", ImportFromDiscourse.unmatch_annotation_tag,"\n", 
+        "unmatch req annotation -> (code): ", ImportFromDiscourse.unmatch_annotation_tag_req,"\n", 
+        "unmatch annotation -> (entity): ", ImportFromDiscourse.unmatch_annotation_entity,"\n"
+        "unmatch req annotation -> (entity): ", ImportFromDiscourse.unmatch_annotation_entity_req,"\n")
         return response
 
