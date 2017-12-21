@@ -80,12 +80,12 @@ class GetAnnotationHydrate(Resource):
 
 class GetAnnotations(Resource):
     def get(self):
-        req = "MATCH (a:annotation)-[:REFERS_TO]->(t:tag) RETURN a.annotation_id AS annotation_id, a.quote AS quote, t.tag_id AS tag_id"
+        req = "MATCH (a:annotation)-[:REFERS_TO]->(t:tag) MATCH (a)-[:ANNOTATES]-(x) RETURN a.annotation_id AS annotation_id, a.quote AS quote, t.tag_id AS tag_id, CASE x.post_id WHEN null THEN 'comment' ELSE 'post' END AS entity_type, CASE x.post_id WHEN null THEN x.comment_id ELSE x.post_id END AS entity_id"
         req += addargs()
         result = neo4j.query_neo4j(req)
         annots = []
         for record in result:
-            annots.append({'annotation_id': record['annotation_id'], "quote": record['quote'], "tag_id": record['tag_id']})
+            annots.append({'annotation_id': record['annotation_id'], "quote": record['quote'], "tag_id": record['tag_id'], "entity_type": record["entity_type"], "entity_id": record["entity_id"]})
         return makeResponse(annots, 200)
 
 
