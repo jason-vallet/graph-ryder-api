@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse
 from neo4j.v1 import ResultError
 from connector import neo4j
 from routes.utils import addargs, addTimeFilter, makeResponse
+import datetime
 
 parser = reqparse.RequestParser()
 
@@ -100,12 +101,13 @@ class GetPostHydrate(Resource): # todo comments on comments (with author)
 
 class GetPosts(Resource):
     def get(self):
-        req = "MATCH (p:post) RETURN p.post_id AS post_id, p.title AS title"
+        req = "MATCH (p:post)<-[:AUTHORSHIP]-(u:user) RETURN p.post_id AS post_id, p.title AS title, p.content AS content, p.timestamp AS timestamp, u.user_id AS user_id"
         req += addargs()
         result = neo4j.query_neo4j(req)
         posts = []
         for record in result:
-            posts.append({'post_id': record['post_id'], "title": record['title']})
+            fmt_time = datetime.datetime.fromtimestamp(record['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
+            posts.append({'post_id': record['post_id'], "title": record['title'], "content": record["content"], "timestamp": fmt_time, "user_id": record["user_id"]})
         return makeResponse(posts, 200)
 
 class GetPostsLatest(Resource):

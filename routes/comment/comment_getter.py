@@ -2,7 +2,7 @@ from flask_restful import Resource
 from neo4j.v1 import ResultError
 from connector import neo4j
 from routes.utils import addargs, makeResponse
-
+import datetime
 
 class GetComment(Resource):
     def get(self, comment_id):
@@ -100,12 +100,13 @@ class GetCommentHydrate(Resource):
 
 class GetComments(Resource):
     def get(self):
-        req = "MATCH (c:comment) RETURN c.comment_id AS comment_id, c.title AS title"
+        req = "MATCH (c:comment)<-[:AUTHORSHIP]-(u:user) MATCH (c)-[:COMMENTS]->(p:post) RETURN c.comment_id AS comment_id, c.title AS title, c.content AS content, c.timestamp AS timestamp, u.user_id AS user_id, p.post_id AS post_id"
         req += addargs()
         result = neo4j.query_neo4j(req)
         comments = []
         for record in result:
-            comments.append({'comment_id': record['comment_id'], "title": record['title']})
+            fmt_time = datetime.datetime.fromtimestamp(record['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
+            comments.append({'comment_id': record['comment_id'], "title": record['title'], "content": record["content"], "date": fmt_time, "user_id": record["user_id"], "post_id": record["post_id"]})
         return makeResponse(comments, 200)
 
 
