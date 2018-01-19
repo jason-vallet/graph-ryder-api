@@ -48,9 +48,10 @@ class ImportFromDiscourse(object):
             self.neo4j_graph.delete_all()
         ImportFromDiscourse.verbose=debug
         self.tags = {}
-        self.node_tulip = {'users': {}, 'posts': {}, 'comments': {}, 'annotations': {}, 'tags': {}}
-        self.graph = tlp.newGraph()
-        self.max_tag_id = 0
+        self.users = {}
+#        self.existing_elements = {'users': {}, 'posts': {}, 'comments': {}, 'annotations': {}, 'tags': {}}
+        self.existing_elements = {'users': [], 'posts': [], 'comments': [], 'annotations': [], 'tags': []}
+#        self.graph = tlp.newGraph()
         self.unavailable_users_id = []
         self.unavailable_posts_id = []
         self.unavailable_comments_id = []
@@ -62,23 +63,60 @@ class ImportFromDiscourse(object):
         user_node = Node('user')
         user_node['user_id'] = id
         user_node['label'] = cleanString(label)
-        user_node['avatar'] = avatar
-        self.neo4j_graph.merge(user_node)
+        user_node['avatar'] = config['importer_discourse']['abs_path']+avatar
+        user_node['url'] = config['importer_discourse']['abs_path']+config['importer_discourse']['user_rel_path']+label
+        try:
+            self.neo4j_graph.merge(user_node)
+        except ConstraintError:
+            if ImportFromDiscourse.verbose:
+                print("WARNING: user id "+str(user_node['user_id'])+" already exists")
 
-        idp = self.graph.getIntegerProperty('id')
-        labelp = self.graph.getStringProperty('label')
-        typep = self.graph.getStringProperty('type')
-        avatarp = self.graph.getStringProperty('avatar')
-        n = self.graph.addNode()
-        idp[n] = id
-        labelp[n] = label
-        typep[n] = 'user'
-        avatarp[n] = avatar
-        return n
+#        idp = self.graph.getIntegerProperty('id')
+#        labelp = self.graph.getStringProperty('label')
+#        typep = self.graph.getStringProperty('type')
+#        avatarp = self.graph.getStringProperty('avatar')
+#        n = self.graph.addNode()
+#        idp[n] = id
+#        labelp[n] = label
+#        typep[n] = 'user'
+#        avatarp[n] = avatar
+#        return n
 
 
-    def create_users(self, json_users):
+    def create_users(self):
         query_neo4j("CREATE CONSTRAINT ON (n:user) ASSERT n.user_id IS UNIQUE")
+
+        print('Import users')
+        Continue = True
+        page_val = 0
+        while Continue:
+            user_url = config['importer_discourse']['abs_path']+config['importer_discourse']['users_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&per_page=5000&page="+str(page_val)
+            not_ok = True
+            while not_ok:
+                try:
+                    user_req = requests.get(user_url)
+                except:
+                    print('request problem on user page '+str(page_val))
+                    continue
+                try:
+                    user_json = user_req.json()
+                except:
+                    print("failed read user on page "+str(page_val))
+                    continue
+                not_ok = False
+
+            # get all users
+            for user in user_json:
+                # create tag if not existing
+                if not(user['id'] in self.users):
+                    if (user['edgeryders_consent']=="1"):
+                        self.users[user['id']] = user['username']
+            
+            if len(user_json) == 5000:
+                page_val += 1
+            else:
+                Continue = False
+                break
 
 
     def createContent(self, id, type, label, content, timestamp, url):
@@ -95,28 +133,28 @@ class ImportFromDiscourse(object):
         except ConstraintError:
             if ImportFromDiscourse.verbose:
                 print("WARNING: "+type+" id "+str(content_node[type+'_id'])+" already exists")
-        idp = self.graph.getIntegerProperty('id')
-        labelp = self.graph.getStringProperty('label')
-        contentp = self.graph.getStringProperty('content')
-        typep = self.graph.getStringProperty('type')
-        timestampp = self.graph.getDoubleProperty('timestamp')
-        n = self.graph.addNode()
-        idp[n] = id
-        labelp[n] = label
-        contentp[n] = content
-        typep[n] = type
-        timestamp = (timestamp[0:23]+'000')
-        timestampp[n] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
-        return n
+#        idp = self.graph.getIntegerProperty('id')
+#        labelp = self.graph.getStringProperty('label')
+#        contentp = self.graph.getStringProperty('content')
+#        typep = self.graph.getStringProperty('type')
+#        timestampp = self.graph.getDoubleProperty('timestamp')
+#        n = self.graph.addNode()
+#        idp[n] = id
+#        labelp[n] = label
+#        contentp[n] = content
+#        typep[n] = type
+#        timestamp = (timestamp[0:23]+'000')
+#        timestampp[n] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
+#        return n
 
 
     def create_posts(self, id, title):
         query_neo4j("CREATE CONSTRAINT ON (p:post) ASSERT p.post_id IS UNIQUE")
         ImportFromDiscourse.unmatch_post_user = 0
         ImportFromDiscourse.unmatch_comment_post = 0
-        idp = self.graph.getIntegerProperty('id')
-        labelp = self.graph.getStringProperty('label')
-        typep = self.graph.getStringProperty('type')
+#        idp = self.graph.getIntegerProperty('id')
+#        labelp = self.graph.getStringProperty('label')
+#        typep = self.graph.getStringProperty('type')
 
         # get list of posts from topic
         post_url = config['importer_discourse']['abs_path']+config['importer_discourse']['topic_rel_path']+str(id)+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']
@@ -139,11 +177,11 @@ class ImportFromDiscourse(object):
         edgeToCreate = []
         commentList = {}
 
-        i = 0
+        index_post = 0
         # create all elements
         for comment_id in post_json['post_stream']['stream']:
             #print(str(len(post_json['post_stream']['stream'])) +' : '+str(i)+' '+str(comment_id))
-            if i >= len(post_json['post_stream']['posts']):
+            if index_post >= len(post_json['post_stream']['posts']):
             # if comment resume is unavailable (not one of the first 20 posts)
                 comment_url = config['importer_discourse']['abs_path']+config['importer_discourse']['posts_rel_path']+str(comment_id)+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']
                 not_ok = True
@@ -164,16 +202,22 @@ class ImportFromDiscourse(object):
     #            time.sleep(1)
             else:
             # else get available resume
-                comment = post_json['post_stream']['posts'][i]
+                comment = post_json['post_stream']['posts'][index_post]
+
+            if not(comment['user_id'] in self.users):
+            # author of the piece of content has not given the authorisation to publish it
+                continue 
 
             commentList[comment['post_number']] = comment['id']
-            if i == 0:
+            if index_post == 0:
             # first 'comment' of the topic is the main post
                 type = 'post'
-                post_n = self.createContent(comment['id'], type, title, comment['cooked'], comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
-                self.node_tulip['posts'][comment['id']] = post_n
-                self.node_tulip['comments'][comment['id']] = post_n
-                comment_n = post_n
+                self.createContent(comment['id'], type, title, comment['cooked'], comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
+#                self.existing_elements['posts'][comment['id']] = post_n
+                self.existing_elements['posts'].append(comment['id'])
+#                self.existing_elements['comments'][comment['id']] = post_n
+                self.existing_elements['comments'].append(comment['id'])
+#                comment_n = post_n
                 id = comment['id']
 
             else:
@@ -183,20 +227,24 @@ class ImportFromDiscourse(object):
                 tmp = comment['cooked'].split('</b></p>\n\n')
                 if len(tmp) > 1:
                     label = tmp[0][6:]
-                    content = "<p>"+tmp[1]
+                    content = tmp[1]
+                    for tmp_content in tmp[2:]:
+                        content+='</b></p>\n\n'+tmp_content
                 else:
                     tmp = clean_html(comment['cooked']).split(" ")
                     label = ""
                     for j in range(min(8, len(tmp))):
                         label += tmp[j] + " "
                     content = comment['cooked']
-                content = content.replace('href=\\"//', 'href=\\"https://')
-                content = content.replace('href=\\"/', 'href=\\"'+config['importer_discourse']['abs_path'])
-                content = content.replace('src=\\"//', 'href=\\"https://')
-                content = content.replace('src=\\"/', 'href=\\"'+config['importer_discourse']['abs_path'])
+                # replace relative url
+                content = content.replace('href=\"//', 'target=\"_blank\" href=\"https://')
+                content = content.replace('href=\"/', 'target=\"_blank\" href=\"'+config['importer_discourse']['abs_path'])
+                content = content.replace('src=\"//', 'src=\"https://')
+                content = content.replace('src=\"/', 'src=\"'+config['importer_discourse']['abs_path'])
 
-                comment_n = self.createContent(comment['id'], type, label, content, comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
-                self.node_tulip['comments'][comment['id']] = comment_n
+                self.createContent(comment['id'], type, label, content, comment['created_at'], str(comment['topic_id'])+'/'+str(comment['post_number']))
+#                self.existing_elements['comments'][comment['id']] = comment_n
+                self.existing_elements['comments'].append(comment['id'])
             
                 # response to a comment
                 if not(comment['reply_to_post_number'] is None):
@@ -208,10 +256,11 @@ class ImportFromDiscourse(object):
                     edgeToCreate.append([comment['id'], 1])
 
             # link with author
-            if not(comment['user_id'] in self.node_tulip['users']):
-                user_n = self.createUser(comment['user_id'], comment['username'], comment['avatar_template'])
-                self.node_tulip['users'][comment['user_id']] = user_n
-            self.graph.addEdge(self.node_tulip['users'][comment['user_id']], comment_n)
+            if not(comment['user_id'] in self.existing_elements['users']):
+                self.createUser(comment['user_id'], comment['username'], comment['avatar_template'])
+#                self.existing_elements['users'][comment['user_id']] = user_n
+                self.existing_elements['users'].append(comment['user_id'])
+#            self.graph.addEdge(self.existing_elements['users'][comment['user_id']], comment_n)
             try :
                 req = "MATCH (e:%s { %s_id : %d })" % (type, type, comment['id'])
                 req += " MATCH (u:user { user_id : %s })" % comment['user_id']
@@ -235,8 +284,8 @@ class ImportFromDiscourse(object):
                 query_neo4j(req)
 
             # link betwixt comment and post
-            if i > 0:
-                self.graph.addEdge(self.node_tulip['comments'][comment['id']], self.node_tulip['comments'][commentList[1]])
+            if index_post > 0:
+#                self.graph.addEdge(self.existing_elements['comments'][comment['id']], self.existing_elements['comments'][commentList[1]])
                 try:
                     req = "MATCH (c:comment { comment_id : %d }) " % comment['id']
                     req += "MATCH (p:post { post_id : %s }) " % commentList[1]
@@ -248,7 +297,7 @@ class ImportFromDiscourse(object):
                     ImportFromDiscourse.unmatch_comment_post+=1
                     query_neo4j("MATCH (c:comment {comment_id : %s}) DETACH DELETE c" % comment['id'])
 
-            i+=1
+            index_post+=1
 
         # add edges between comments
         for e in edgeToCreate:
@@ -283,14 +332,14 @@ class ImportFromDiscourse(object):
         except ConstraintError:
             if ImportFromDiscourse.verbose:
                 print("WARNING: tag id "+str(tag_node['tag_id'])+" already exists")
-        idp = self.graph.getIntegerProperty('id')
-        labelp = self.graph.getStringProperty('label')
-        typep = self.graph.getStringProperty('type')
-        n = self.graph.addNode()
-        idp[n] = id
-        labelp[n] = label
-        typep[n] = 'tag'
-        return n
+#        idp = self.graph.getIntegerProperty('id')
+#        labelp = self.graph.getStringProperty('label')
+#        typep = self.graph.getStringProperty('type')
+#        n = self.graph.addNode()
+#        idp[n] = id
+#        labelp[n] = label
+#        typep[n] = 'tag'
+#        return n
 
 
     def create_tags(self):
@@ -298,7 +347,6 @@ class ImportFromDiscourse(object):
         print('Import tags')
         Continue = True
         page_val = 0
-        self.max_tag_id = 0
         while Continue:
             tag_url = config['importer_discourse']['abs_path']+config['importer_discourse']['codes_rel_path']+".json?api_key="+config['importer_discourse']['admin_api_key']+"&api_username="+config['importer_discourse']['admin_api_username']+"&per_page=5000&page="+str(page_val)
             not_ok = True
@@ -320,16 +368,17 @@ class ImportFromDiscourse(object):
             # get all tags
             for tag in tag_json:
                 # create tag if not existing
-                if not(tag['id'] in self.node_tulip['tags']):
+                if not(tag['id'] in self.existing_elements['tags']):
                     if not(tag['name'].lower() in self.tags):
-                        tag_n = self.createTag(tag['id'], tag['name'].lower())
+                        self.createTag(tag['id'], tag['name'].lower())
                         self.map_tag_to_tag[tag['id']] = tag['id']
                         self.tags[tag['name'].lower()] = tag['id']
                     else:
                     # if duplicate using mapping
-                        tag_n = self.node_tulip['tags'][self.tags[tag['name'].lower()]]
+#                        tag_n = self.existing_elements['tags'][self.tags[tag['name'].lower()]]
                         self.map_tag_to_tag[tag['id']] = self.tags[tag['name'].lower()]
-                    self.node_tulip['tags'][tag['id']] = tag_n
+#                    self.existing_elements['tags'][tag['id']] = tag_n
+                    self.existing_elements['tags'].append(tag['id'])
                     
                 # no need to create tag hierarchy as the route does not give ancestry info
             
@@ -348,17 +397,17 @@ class ImportFromDiscourse(object):
         annotation_node['timestamp'] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
         self.neo4j_graph.merge(annotation_node)
 
-        idp = self.graph.getIntegerProperty('id')
-        quotep = self.graph.getStringProperty('quote')
-        typep = self.graph.getStringProperty('type')
-        timestampp = self.graph.getDoubleProperty('timestamp')
-        n = self.graph.addNode()
-        idp[n] = id
-        quotep[n] = quote
-        typep[n] = 'annotation'
-        timestamp = (timestamp[0:23]+'000')
-        timestampp[n] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
-        return n
+#        idp = self.graph.getIntegerProperty('id')
+#        quotep = self.graph.getStringProperty('quote')
+#        typep = self.graph.getStringProperty('type')
+#        timestampp = self.graph.getDoubleProperty('timestamp')
+#        n = self.graph.addNode()
+#        idp[n] = id
+#        quotep[n] = quote
+#        typep[n] = 'annotation'
+#        timestamp = (timestamp[0:23]+'000')
+#        timestampp[n] = int(time.mktime(datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f").timetuple()) * 1000)
+#        return n
 
 
     def create_annotations(self):
@@ -394,7 +443,7 @@ class ImportFromDiscourse(object):
             # get all annotations
             for annotation in ann_json:
                 # only select annotations which link to existing posts and tags
-                if annotation['post_id'] in self.node_tulip['comments']:
+                if annotation['post_id'] in self.existing_elements['comments']:
                     if not(annotation['code_id'] in self.map_tag_to_tag):
                         if not(str(annotation['code_id']) in self.unavailable_tags_id):
                             self.unavailable_tags_id.append(str(annotation['code_id']))
@@ -404,13 +453,12 @@ class ImportFromDiscourse(object):
 #                        if not(annotation['tag_id'] in self.tags):
 #                            tag_n = self.createTag(annotation['tag_id'], str(annotation['tag_id']))
 #                        else:
-#                            tag_n = self.node_tulip['tags'][self.tags[annotation['tag_id']]]
-#                        self.node_tulip['tags'][annotation['tag_id']] = tag_n
+#                            tag_n = self.existing_elements['tags'][self.tags[annotation['tag_id']]]
+#                        self.existing_elements['tags'][annotation['tag_id']] = tag_n
 #                        self.tags[annotation['tag_id']] = annotation['tag_id']
-#                        self.max_tag_id = max(self.max_tag_id, annotation['tag_id']+1)
 ###
 
-                    if not(annotation['post_id'] in self.node_tulip['comments']):
+                    if not(annotation['post_id'] in self.existing_elements['comments']):
                         if not(str(annotation['post_id']) in self.unavailable_comments_id):
                             self.unavailable_comments_id.append(str(annotation['post_id']))
                         ImportFromDiscourse.unmatch_annotation_entity +=1
@@ -418,13 +466,13 @@ class ImportFromDiscourse(object):
 ###
 #                        type = 'post'
 #                        post_n = self.createContent(annotation['post_id'], 'other', "NOTHING", "MISSING CONTENT", "1971-01-01T00:00:01.000Z", str(annotation['post_id'])+'/'+str(0))
-#                        self.node_tulip['posts'][annotation['post_id']] = post_n
-#                        self.node_tulip['comments'][annotation['post_id']] = post_n
+#                        self.existing_elements['posts'][annotation['post_id']] = post_n
+#                        self.existing_elements['comments'][annotation['post_id']] = post_n
 ###
 
                     annotation_n = self.createAnnotation(annotation['id'], annotation['quote'], annotation['created_at'])
                     # link annotation to tag
-                    self.graph.addEdge(annotation_n, self.node_tulip['tags'][annotation['code_id']])
+#                    self.graph.addEdge(annotation_n, self.existing_elements['tags'][annotation['code_id']])
                     try:
                         req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
                         req += "MATCH (t:tag { tag_id : %s }) " % self.map_tag_to_tag[annotation['code_id']]
@@ -440,9 +488,9 @@ class ImportFromDiscourse(object):
                         continue
                     # link to content
                     type = 'comment'
-                    if  annotation['post_id'] in self.node_tulip['posts']:
+                    if  annotation['post_id'] in self.existing_elements['posts']:
                         type = 'post'
-                    self.graph.addEdge(annotation_n, self.node_tulip['comments'][annotation['post_id']])
+#                    self.graph.addEdge(annotation_n, self.existing_elements['comments'][annotation['post_id']])
                     try:
                         req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
                         req += "MATCH (e:%s { %s_id : %s }) " % (type, type, annotation['post_id'])
@@ -455,8 +503,8 @@ class ImportFromDiscourse(object):
                         query_neo4j("MATCH (a:annotation {annotation_id : %s}) DETACH DELETE a" % annotation['id'])
                         continue
                     # link to creator
-                    #if annotation['creator_id'] in self.node_tulip['users']:
-                    #    self.graph.addEdge(annotation_n, self.node_tulip['users'][annotation['creator_id']])
+                    #if annotation['creator_id'] in self.existing_elements['users']:
+                    #    self.graph.addEdge(annotation_n, self.existing_elements['users'][annotation['creator_id']])
                     #    try:
                     #        req = "MATCH (a:annotation { annotation_id : %d }) " % annotation['id']
                     #        req += "MATCH (u:user { user_id : %s }) " % annotation['creator_id']
@@ -482,7 +530,7 @@ class ImportFromDiscourse(object):
 
     def end_import(self):
 
-        tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
+        #tlp.saveGraph(self.graph, "/usr/src/myapp/discourse.tlpb")
         response = {'users': self.unavailable_users_id, "posts": self.unavailable_posts_id, 'comments': self.unavailable_comments_id, "tags":  self.unavailable_tags_id}
         print(response)
         print(" unmatch post -> (user): ", ImportFromDiscourse.unmatch_post_user,"\n",
