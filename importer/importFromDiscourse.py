@@ -51,6 +51,8 @@ class ImportFromDiscourse(object):
         self.users = {}
 #        self.existing_elements = {'users': {}, 'posts': {}, 'comments': {}, 'annotations': {}, 'tags': {}}
         self.existing_elements = {'users': [], 'posts': [], 'comments': [], 'annotations': [], 'tags': []}
+        self.anonymous_elements = {'users': [], 'posts': [], 'comments': [], 'annotations': [], 'tags': []}
+        self.anonymous_values = {'user': {'label': "Anonymous", 'id': ""}, 'comment': {'title': "Undisclosed title", 'content': "Undisclosed content"}, 'annotation': {'content': "Undisclosed content"}}
 #        self.graph = tlp.newGraph()
         self.unavailable_users_id = []
         self.unavailable_posts_id = []
@@ -204,11 +206,13 @@ class ImportFromDiscourse(object):
             # else get available resume
                 comment = post_json['post_stream']['posts'][index_post]
 
-            if not(comment['user_id'] in self.users):
-            # author of the piece of content has not given the authorisation to publish it
-                continue 
-
             commentList[comment['post_number']] = comment['id']
+            # check if author of the piece of content has not given the authorisation to publish it
+            if not (comment['user_id'] in self.users):
+                self.anonymous_elements['comments'].append(comment['id'])
+                title = self.anonymous_values['comment']['title']
+                comment['cooked'] = self.anonymous_values['comment']['content']
+
             if index_post == 0:
             # first 'comment' of the topic is the main post
                 type = 'post'
@@ -256,11 +260,18 @@ class ImportFromDiscourse(object):
                     edgeToCreate.append([comment['id'], 1])
 
             # link with author
+            if not(comment['user_id'] in self.users):
+                if self.anonymous_values['user']['id']=="":
+                    self.anonymous_values['user']['id'] = max(self.users)+1
+                #comment['user_id'] = self.anonymous_values['user']['id']
+                comment['username'] = self.anonymous_values['user']['label']
+                comment['avatar_template'] = ""
+
             if not(comment['user_id'] in self.existing_elements['users']):
                 self.createUser(comment['user_id'], comment['username'], comment['avatar_template'])
-#                self.existing_elements['users'][comment['user_id']] = user_n
+#               self.existing_elements['users'][comment['user_id']] = user_n
                 self.existing_elements['users'].append(comment['user_id'])
-#            self.graph.addEdge(self.existing_elements['users'][comment['user_id']], comment_n)
+#               self.graph.addEdge(self.existing_elements['users'][comment['user_id']], comment_n)
             try :
                 req = "MATCH (e:%s { %s_id : %d })" % (type, type, comment['id'])
                 req += " MATCH (u:user { user_id : %s })" % comment['user_id']
@@ -469,6 +480,8 @@ class ImportFromDiscourse(object):
 #                        self.existing_elements['posts'][annotation['post_id']] = post_n
 #                        self.existing_elements['comments'][annotation['post_id']] = post_n
 ###
+                    if annotation['post_id'] in self.anonymous_elements['comments']:
+                        annotation['quote'] = self.anonymous_values['annotation']['content']
 
                     annotation_n = self.createAnnotation(annotation['id'], annotation['quote'], annotation['created_at'])
                     # link annotation to tag
