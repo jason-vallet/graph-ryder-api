@@ -177,10 +177,20 @@ class HardUpdateFromEdgeRydersDiscourse(Resource):
                     print("failed read on topic page "+str(page_val))
                     time.sleep(2)
                     continue
+                try:
+                    topics = cat_json['topic_list']['topics']
+                except:
+                    print("failed read on topic list page "+str(page_val))
+                    time.sleep(2)
+                    continue
                 not_ok = False
 
             for post in cat_json['topic_list']['topics']:
-                comment_n = importer.create_posts(post['id'], post['title'])
+                try:
+                    comment_n = importer.create_posts(post['id'], post['title'])
+                except Exception as exc:
+                    print("fail creating post "+str(post['id'])+" ("+config['importer_discourse']['abs_path']+config['importer_discourse']['topic_rel_path']+str(post['id'])+".json):"+str(exc))
+                    raise exc
 
             if len(cat_json['topic_list']['topics']) == 30:
                 page_val += 1

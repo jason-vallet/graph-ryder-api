@@ -175,6 +175,13 @@ class ImportFromDiscourse(object):
                 post_json = []
                 time.sleep(2)
                 continue
+            try:
+                post_stream = post_json['post_stream']
+            except:
+                print("failed read on topic stream "+str(id))
+                post_json = []
+                time.sleep(2)
+                continue                
             not_ok = False
         edgeToCreate = []
         commentList = {}
@@ -198,6 +205,12 @@ class ImportFromDiscourse(object):
                         comment = comment_req.json()
                     except:
                         print("failed read on post "+str(comment_id))
+                        time.sleep(2)
+                        continue
+                    try:
+                        tmp_comment_id = comment['id']
+                    except:
+                        print("failed read on post id "+str(comment_id))
                         time.sleep(2)
                         continue
                     not_ok = False
