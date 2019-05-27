@@ -393,14 +393,23 @@ class ImportFromDiscourse(object):
             for tag in tag_json:
                 # create tag if not existing
                 if not(tag['id'] in self.existing_elements['tags']):
-                    if not(tag['name'].lower() in self.tags):
-                        self.createTag(tag['id'], tag['name'].lower())
+                    # handle multilingual values
+                    if len(tag['names']) < 1:
+                        continue
+                    tag['name'] = tag['names'][0]['name'].lower()        
+                    for tmp_i in range(len(tag['names'])):
+                        if tag['names'][tmp_i]['locale'] == 'en':
+                            tag['name'] = tag['names'][tmp_i]['name'].lower()
+                            break
+                    
+                    if not(tag['name'] in self.tags):
+                        self.createTag(tag['id'], tag['name'])
                         self.map_tag_to_tag[tag['id']] = tag['id']
-                        self.tags[tag['name'].lower()] = tag['id']
+                        self.tags[tag['name']] = tag['id']
                     else:
                     # if duplicate using mapping
 #                        tag_n = self.existing_elements['tags'][self.tags[tag['name'].lower()]]
-                        self.map_tag_to_tag[tag['id']] = self.tags[tag['name'].lower()]
+                        self.map_tag_to_tag[tag['id']] = self.tags[tag['name']]
 #                    self.existing_elements['tags'][tag['id']] = tag_n
                     self.existing_elements['tags'].append(tag['id'])
                     
