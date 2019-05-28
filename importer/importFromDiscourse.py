@@ -110,9 +110,12 @@ class ImportFromDiscourse(object):
             # get all users
             for user in user_json:
                 # create tag if not existing
-                if not(user['id'] in self.users):
-                    if (user['edgeryders_consent']=="1"):
-                        self.users[user['id']] = user['username']
+                try:
+                    if not(user['id'] in self.users):
+                        if (user['edgeryders_consent']=="1"):
+                            self.users[user['id']] = user['username']
+                except:
+                    continue
             
             if len(user_json) == 5000:
                 page_val += 1
